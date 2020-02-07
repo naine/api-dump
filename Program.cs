@@ -4,7 +4,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -52,7 +51,6 @@ namespace ApiDump
                 {
                     PrintNamespace(globalNamespaces[i]);
                 }
-                Console.WriteLine("OK");
             }
             catch (SimpleException ex)
             {
@@ -146,59 +144,16 @@ namespace ApiDump
                 break;
             case TypeKind.Delegate:
                 sb.Append("delegate ")
-                    .Append(FormatReturnSignature(type.DelegateInvokeMethod!))
+                    .AppendReturnSignature(type.DelegateInvokeMethod!)
                     .Append(' ').Append(type.Name);
                 break;
             default:
                 throw new SimpleException($"Named type {type} has unexpected kind {type.TypeKind}");
             }
-            var constraints = new List<(string, List<string>)>();
-            if (type.TypeParameters.Length != 0)
-            {
-                sb.Append('<');
-                for (int i = 0; i < type.TypeParameters.Length; i++)
-                {
-                    if (i != 0) sb.Append(", ");
-                    var param = type.TypeParameters[i];
-                    sb.Append(param.Variance switch
-                    {
-                        VarianceKind.In => "in ",
-                        VarianceKind.Out => "out ",
-                        VarianceKind.None => "",
-                        _ => throw new SimpleException($"Invalid variance kind: {param.Variance}"),
-                    }).Append(param.Name);
-                    var constraint = new List<string>();
-                    if (param.HasUnmanagedTypeConstraint)
-                    {
-                        constraint.Add("unmanaged");
-                    }
-                    else if (param.HasValueTypeConstraint)
-                    {
-                        constraint.Add("struct");
-                    }
-                    else if (param.HasReferenceTypeConstraint)
-                    {
-                        constraint.Add("class");
-                    }
-                    else if (param.HasNotNullConstraint)
-                    {
-                        constraint.Add("notnull");
-                    }
-                    foreach (var cType in param.ConstraintTypes)
-                    {
-                        constraint.Add(FormatType(cType).ToString());
-                    }
-                    if (param.HasConstructorConstraint)
-                    {
-                        constraint.Add("new()");
-                    }
-                    if (constraint.Count != 0) constraints.Add((param.Name, constraint));
-                }
-                sb.Append('>');
-            }
+            sb.AppendTypeParameters(type.TypeParameters, out var constraints);
             if (type.TypeKind == TypeKind.Delegate)
             {
-                sb.Append(FormatParameters(type.DelegateInvokeMethod!.Parameters));
+                sb.AppendParameters(type.DelegateInvokeMethod!.Parameters);
             }
             else
             {
@@ -206,18 +161,18 @@ namespace ApiDump
                 if (type.BaseType != null && type.TypeKind == TypeKind.Class
                     && type.BaseType.SpecialType != SpecialType.System_Object)
                 {
-                    bases.Add(FormatType(type.BaseType));
+                    bases.Add(new StringBuilder().AppendType(type.BaseType));
                 }
                 if (type.TypeKind != TypeKind.Enum)
                 {
                     foreach (var iface in type.Interfaces)
                     {
-                        bases.Add(FormatType(iface));
+                        bases.Add(new StringBuilder().AppendType(iface));
                     }
                 }
                 else if (type.EnumUnderlyingType != null)
                 {
-                    bases.Add(FormatType(type.EnumUnderlyingType));
+                    bases.Add(new StringBuilder().AppendType(type.EnumUnderlyingType));
                 }
                 if (bases.Count != 0)
                 {
@@ -229,15 +184,7 @@ namespace ApiDump
                     }
                 }
             }
-            foreach ((string param, var constraint) in constraints)
-            {
-                sb.Append(" where ").Append(param).Append(" : ");
-                for (int i = 0; i < constraint.Count; i++)
-                {
-                    if (i != 0) sb.Append(", ");
-                    sb.Append(constraint[i]);
-                }
-            }
+            sb.AppendTypeConstraints(constraints);
             if (type.TypeKind == TypeKind.Delegate)
             {
                 PrintLine(sb.Append(';').ToString(), indent);
@@ -268,6 +215,29 @@ namespace ApiDump
 
         private static void PrintMember(ISymbol member, int indent, bool inInterface)
         {
+            if (member.Kind == SymbolKind.Method)
+            {
+                switch (((IMethodSymbol)member).MethodKind)
+                {
+                case MethodKind.Destructor:
+                    PrintLine($"~{member.ContainingType.Name}();", indent);
+                    return;
+                case MethodKind.ExplicitInterfaceImplementation:
+                case MethodKind.StaticConstructor:
+                case MethodKind.PropertyGet:
+                case MethodKind.PropertySet:
+                case MethodKind.EventAdd:
+                case MethodKind.EventRemove:
+                    return;
+                }
+            }
+            else if ((member is IEventSymbol eventSymbol
+                && !eventSymbol.ExplicitInterfaceImplementations.IsEmpty)
+                || (member is IPropertySymbol property
+                && !property.ExplicitInterfaceImplementations.IsEmpty))
+            {
+                return;
+            }
             var sb = new StringBuilder();
             if (!inInterface)
             {
@@ -307,7 +277,7 @@ namespace ApiDump
                     if (field.IsReadOnly) sb.Append("readonly ");
                     else if (field.IsVolatile) sb.Append("volatile ");
                 }
-                sb.Append(FormatType(field.Type)).Append(' ').Append(field.Name);
+                sb.AppendType(field.Type).Append(' ').Append(field.Name);
                 if (field.IsConst)
                 {
                     sb.Append(" = ");
@@ -332,82 +302,97 @@ namespace ApiDump
                 PrintLine(sb.Append(';').ToString(), indent);
                 return;
             case IEventSymbol eventSymbol:
-                if (eventSymbol.IsStatic) sb.Append("static ");
-                else if (eventSymbol.IsOverride) sb.Append("override ");
-                else if (eventSymbol.IsAbstract && !inInterface) sb.Append("abstract ");
-                else if (eventSymbol.IsSealed) sb.Append("sealed ");
-                else if (eventSymbol.IsVirtual && !inInterface) sb.Append("virtual ");
-                PrintLine(sb.Append("event ").Append(FormatType(eventSymbol.Type)).Append(' ')
+                if (eventSymbol.IsStatic)
+                {
+                    sb.Append("static ");
+                }
+                else if (eventSymbol.IsOverride)
+                {
+                    if (eventSymbol.IsSealed) sb.Append("sealed ");
+                    sb.Append("override ");
+                }
+                else if (!inInterface)
+                {
+                    if (eventSymbol.IsAbstract) sb.Append("abstract ");
+                    else if (eventSymbol.IsVirtual) sb.Append("virtual ");
+                }
+                PrintLine(sb.Append("event ").AppendType(eventSymbol.Type).Append(' ')
                     .Append(eventSymbol.Name).Append(';').ToString(), indent);
                 return;
             case IMethodSymbol method:
-                // TODO method, ctor, dtor, optor
-                throw new NotImplementedException();
+                switch (method.MethodKind)
+                {
+                case MethodKind.Constructor:
+                    PrintLine(sb.Append(method.ContainingType.Name)
+                        .AppendParameters(method.Parameters).Append(';').ToString(), indent);
+                    return;
+                case MethodKind.Ordinary:
+                case MethodKind.Conversion:
+                case MethodKind.UserDefinedOperator:
+                    if (method.IsStatic)
+                    {
+                        sb.Append("static ");
+                    }
+                    else if (method.IsOverride)
+                    {
+                        if (method.IsSealed) sb.Append("sealed ");
+                        sb.Append("override ");
+                    }
+                    else if (!inInterface)
+                    {
+                        if (method.IsAbstract) sb.Append("abstract ");
+                        else if (method.IsVirtual) sb.Append("virtual ");
+                    }
+                    sb.AppendReturnSignature(method).Append(' ').Append(method.Name);
+                    sb.AppendTypeParameters(method.TypeParameters, out var constraints);
+                    sb.AppendParameters(method.Parameters);
+                    sb.AppendTypeConstraints(constraints);
+                    PrintLine(sb.Append(';').ToString(), indent);
+                    break;
+                default:
+                    throw new SimpleException($"Unexpected method kind {method.MethodKind}: {method}");
+                }
+                break;
             case IPropertySymbol property:
-                // TODO property, indexer
-                throw new NotImplementedException();
+                if (property.IsStatic)
+                {
+                    sb.Append("static ");
+                }
+                else if (property.IsOverride)
+                {
+                    if (property.IsSealed) sb.Append("sealed ");
+                    sb.Append("override ");
+                }
+                else if (!inInterface)
+                {
+                    if (property.IsAbstract) sb.Append("abstract ");
+                    else if (property.IsVirtual) sb.Append("virtual ");
+                }
+                if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
+                else if (property.ReturnsByRef) sb.Append("ref ");
+                sb.AppendType(property.Type).Append(' ');
+                if (property.IsIndexer)
+                {
+                    sb.Append("this[").AppendParameters(property.Parameters, false).Append(']');
+                }
+                else
+                {
+                    sb.Append(property.Name);
+                }
+                sb.Append(" { ");
+                if (property.GetMethod != null)
+                {
+                    sb.AppendAccessor("get", property.GetMethod, property);
+                }
+                if (property.SetMethod != null)
+                {
+                    sb.AppendAccessor("set", property.SetMethod, property);
+                }
+                PrintLine(sb.Append('}').ToString(), indent);
+                break;
             default:
                 throw new SimpleException($"Unexpected member kind {member.Kind}: {member}");
             }
-        }
-
-        private static StringBuilder FormatType(ITypeSymbol type)
-        {
-            switch (type)
-            {
-            case INamedTypeSymbol namedType:
-                var sb = new StringBuilder(namedType.Name);
-                if (!namedType.IsGenericType) return sb;
-                sb.Append('<');
-                for (int i = 0; i < namedType.TypeArguments.Length; i++)
-                {
-                    if (i != 0) sb.Append(", ");
-                    sb.Append(FormatType(namedType.TypeArguments[i]));
-                }
-                return sb.Append('>');
-            case IPointerTypeSymbol pointerType:
-                return FormatType(pointerType.PointedAtType).Append('*');
-            case IArrayTypeSymbol arrayType:
-                sb = FormatType(arrayType.ElementType).Append('[');
-                for (int i = 1; i < arrayType.Rank; ++i) Console.Write(',');
-                return sb.Append(']');
-            }
-            return new StringBuilder(type.TypeKind switch
-            {
-                TypeKind.Dynamic => "dynamic",
-                TypeKind.TypeParameter => type.Name,
-                _ => throw new SimpleException($"Type {type} has unexpected kind {type.TypeKind}"),
-            });
-        }
-
-        private static StringBuilder FormatReturnSignature(IMethodSymbol method)
-        {
-            var sb = new StringBuilder();
-            if (method.ReturnsVoid) return sb.Append("void");
-            else if (method.ReturnsByRefReadonly) sb.Append("ref readonly ");
-            else if (method.ReturnsByRef) sb.Append("ref ");
-            return sb.Append(FormatType(method.ReturnType));
-        }
-
-        private static StringBuilder FormatParameters(ImmutableArray<IParameterSymbol> parameters)
-        {
-            var sb = new StringBuilder("(");
-            for (int i = 0; i < parameters.Length; i++)
-            {
-                if (i != 0) sb.Append(", ");
-                var p = parameters[i];
-                if (p.IsParams) sb.Append("params ");
-                else if (p.IsThis) sb.Append("this ");
-                sb.Append(p.RefKind switch
-                {
-                    RefKind.Ref => "ref ",
-                    RefKind.Out => "out ",
-                    RefKind.In => "in ",
-                    RefKind.None => "",
-                    _ => throw new SimpleException($"Invalid ref kind: {p.RefKind}"),
-                }).Append(FormatType(p.Type)).Append(' ').Append(p.Name);
-            }
-            return sb.Append(')');
         }
     }
 
