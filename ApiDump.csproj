@@ -4,6 +4,8 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <RollForward>Major</RollForward>
+    <PublishReadyToRun>true</PublishReadyToRun>
     <Authors>Nathan Williams</Authors>
     <Copyright>Copyright © Nathan Williams 2020</Copyright>
     <Description>Tool for dumping the types and API signatures of an IL assembly.</Description>
