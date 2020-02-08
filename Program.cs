@@ -92,7 +92,7 @@ namespace ApiDump
 
         private static void PrintNamespace(INamespaceSymbol ns)
         {
-            if (!ns.IsGlobalNamespace) PrintLine($"namespace {ns.Name} {{", 0, LineOption.LeaveOpen);
+            if (!ns.IsGlobalNamespace) PrintLine($"namespace {FullName(ns)} {{", 0, LineOption.LeaveOpen);
             foreach (var type in ns.GetTypeMembers().OrderBy(t => t.MetadataName))
             {
                 if (type.DeclaredAccessibility == Accessibility.Public)
@@ -105,6 +105,12 @@ namespace ApiDump
             {
                 PrintNamespace(subNs);
             }
+        }
+
+        private static string FullName(INamespaceSymbol ns)
+        {
+            var parent = ns.ContainingNamespace;
+            return parent.IsGlobalNamespace ? ns.Name : $"{FullName(parent)}.{ns.Name}";
         }
 
         private static void PrintType(INamedTypeSymbol type, int indent)
@@ -158,8 +164,7 @@ namespace ApiDump
             else
             {
                 var bases = new List<StringBuilder>();
-                if (type.BaseType != null && type.TypeKind == TypeKind.Class
-                    && type.BaseType.SpecialType != SpecialType.System_Object)
+                if (type.BaseType != null && type.TypeKind == TypeKind.Class && !IsObject(type.BaseType))
                 {
                     bases.Add(new StringBuilder().AppendType(type.BaseType));
                 }
@@ -209,6 +214,9 @@ namespace ApiDump
                 PrintLine("}", indent, LineOption.Continue);
             }
         }
+
+        private static bool IsObject(INamedTypeSymbol type)
+            => type.BaseType == null && type.Name.ToLowerInvariant() == "object";
 
         private static readonly char[] escapes
             = { '0', '\0', '\0', '\0', '\0', '\0', '\0', 'a', 'b', 't', 'n', 'v', 'f', 'r' };
@@ -283,7 +291,7 @@ namespace ApiDump
                     sb.Append(" = ");
                     if (field.ConstantValue is string s)
                     {
-                        sb.Append('"').Append(s.Replace("\\", "\\\\").Replace("\"", "\\\"")).Append('"');
+                        sb.Append('"');
                         foreach (char c in s)
                         {
                             if (c < escapes.Length && escapes[c] != 0) sb.Append('\\').Append(escapes[c]);
@@ -293,6 +301,7 @@ namespace ApiDump
                             else if (c < 127) sb.Append(c);
                             else sb.Append($"\\u{(int)c:x4}");
                         }
+                        sb.Append('"');
                     }
                     else
                     {

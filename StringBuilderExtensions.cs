@@ -36,7 +36,6 @@ namespace ApiDump
             switch (type)
             {
             case INamedTypeSymbol namedType:
-                sb.Append(namedType.Name);
                 switch (namedType.SpecialType)
                 {
                 case SpecialType.System_Boolean:
