@@ -16,28 +16,60 @@ namespace ApiDump
     {
         static int Main(string[] args)
         {
-            if (args.Length == 0)
+            var dlls = args.ToList();
+            bool noStdLib = dlls.Remove("--nostdlib");
+            if (dlls.Count == 0)
             {
-                Console.Error.WriteLine("Usage: {0} <dllpaths>...",
+                Console.Error.WriteLine("Usage: {0} [--nostdlib] <dllpaths>...",
                     Path.GetFileNameWithoutExtension(typeof(Program).Assembly.Location));
                 return 1;
             }
             try
             {
                 var refs = new List<MetadataReference>();
-                foreach (string path in args)
+                foreach (string path in dlls)
                 {
                     refs.Add(MetadataReference.CreateFromFile(path));
+                }
+                if (!noStdLib)
+                {
+                    string refDir = typeof(object).Assembly.Location;
+                    while (!"dotnet".Equals(Path.GetFileName(refDir), StringComparison.OrdinalIgnoreCase))
+                    {
+                        refDir = Path.GetDirectoryName(refDir)
+                            ?? throw new SimpleException("Unable to find .NET Core SDK location");
+                    }
+                    refDir = Path.Combine(refDir, "packs", "Microsoft.NETCore.App.Ref");
+                    Version? maxVersion = null;
+                    foreach (string dir in Directory.EnumerateDirectories(refDir))
+                    {
+                        if (Version.TryParse(Path.GetFileName(dir), out var ver)
+                            && (maxVersion == null || ver > maxVersion))
+                        {
+                            refDir = dir;
+                            maxVersion = ver;
+                        }
+                    }
+                    if (maxVersion == null)
+                    {
+                        throw new SimpleException("No appropriate .NET Core targeting pack found");
+                    }
+                    refDir = Path.Combine(refDir, "ref", $"netcoreapp{maxVersion.Major}.{maxVersion.Minor}");
+                    foreach (string path in Directory.EnumerateFiles(
+                        refDir, "*.dll", SearchOption.AllDirectories))
+                    {
+                        refs.Add(MetadataReference.CreateFromFile(path));
+                    }
                 }
                 var comp = CSharpCompilation.Create("dummy", null, refs,
                     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
                 var errors = comp.GetDiagnostics();
-                if (!errors.IsEmpty)
+                if (!errors.IsDefaultOrEmpty)
                 {
                     throw new SimpleException($"Compilation has errors:\n{string.Join('\n', errors)}");
                 }
                 var globalNamespaces = comp.GlobalNamespace.ConstituentNamespaces;
-                if (globalNamespaces.Length != args.Length + 1)
+                if (globalNamespaces.Length != refs.Count + 1)
                 {
                     throw new SimpleException("Unexpected number of global namespaces: {0}",
                         globalNamespaces.Length);
@@ -47,7 +79,7 @@ namespace ApiDump
                     throw new SimpleException("Unexpected first global namespace: {0}",
                         globalNamespaces[0].ContainingAssembly.Name);
                 }
-                for (int i = 1; i < globalNamespaces.Length; ++i)
+                for (int i = 1; i <= dlls.Count; ++i)
                 {
                     PrintNamespace(globalNamespaces[i]);
                 }
@@ -92,15 +124,20 @@ namespace ApiDump
 
         private static void PrintNamespace(INamespaceSymbol ns)
         {
-            if (!ns.IsGlobalNamespace) PrintLine($"namespace {FullName(ns)} {{", 0, LineOption.LeaveOpen);
+            bool printed = false;
             foreach (var type in ns.GetTypeMembers().OrderBy(t => t.MetadataName))
             {
                 if (type.DeclaredAccessibility == Accessibility.Public)
                 {
+                    if (!printed && !ns.IsGlobalNamespace)
+                    {
+                        PrintLine($"namespace {FullName(ns)} {{", 0);
+                        printed = true;
+                    }
                     PrintType(type, ns.IsGlobalNamespace ? 0 : 1);
                 }
             }
-            if (!ns.IsGlobalNamespace) PrintLine("}", 0, LineOption.Continue);
+            if (printed) PrintLine("}", 0);
             foreach (var subNs in ns.GetNamespaceMembers().OrderBy(t => t.MetadataName))
             {
                 PrintNamespace(subNs);
@@ -164,7 +201,8 @@ namespace ApiDump
             else
             {
                 var bases = new List<StringBuilder>();
-                if (type.BaseType != null && type.TypeKind == TypeKind.Class && !IsObject(type.BaseType))
+                if (type.BaseType != null && type.TypeKind == TypeKind.Class
+                    && type.BaseType.SpecialType != SpecialType.System_Object)
                 {
                     bases.Add(new StringBuilder().AppendType(type.BaseType));
                 }
@@ -215,9 +253,6 @@ namespace ApiDump
             }
         }
 
-        private static bool IsObject(INamedTypeSymbol type)
-            => type.BaseType == null && type.Name.ToLowerInvariant() == "object";
-
         private static readonly char[] escapes
             = { '0', '\0', '\0', '\0', '\0', '\0', '\0', 'a', 'b', 't', 'n', 'v', 'f', 'r' };
 
@@ -230,6 +265,13 @@ namespace ApiDump
                 case MethodKind.Destructor:
                     PrintLine($"~{member.ContainingType.Name}();", indent);
                     return;
+                case MethodKind.Constructor:
+                    if (member.ContainingType.TypeKind == TypeKind.Struct
+                        && ((IMethodSymbol)member).Parameters.IsDefaultOrEmpty)
+                    {
+                        return;
+                    }
+                    break;
                 case MethodKind.ExplicitInterfaceImplementation:
                 case MethodKind.StaticConstructor:
                 case MethodKind.PropertyGet:
@@ -240,9 +282,9 @@ namespace ApiDump
                 }
             }
             else if ((member is IEventSymbol eventSymbol
-                && !eventSymbol.ExplicitInterfaceImplementations.IsEmpty)
+                && !eventSymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
                 || (member is IPropertySymbol property
-                && !property.ExplicitInterfaceImplementations.IsEmpty))
+                && !property.ExplicitInterfaceImplementations.IsDefaultOrEmpty))
             {
                 return;
             }
