@@ -125,7 +125,7 @@ namespace ApiDump
         private static void PrintNamespace(INamespaceSymbol ns)
         {
             bool printed = false;
-            foreach (var type in ns.GetTypeMembers().OrderBy(t => t.MetadataName))
+            foreach (var type in ns.GetTypeMembers().OrderBy(t => t.MetadataName)) // TODO T`10 > T`2
             {
                 if (type.DeclaredAccessibility == Accessibility.Public)
                 {
@@ -202,33 +202,39 @@ namespace ApiDump
                 throw new SimpleException($"Named type {type} has unexpected kind {type.TypeKind}");
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
-            var bases = new List<StringBuilder>();
+            var bases = new List<INamedTypeSymbol>();
             if (type.BaseType != null && type.TypeKind == TypeKind.Class
                 && type.BaseType.SpecialType != SpecialType.System_Object)
             {
-                bases.Add(new StringBuilder().AppendType(type.BaseType));
+                bases.Add(type.BaseType);
             }
             if (type.TypeKind != TypeKind.Enum)
             {
                 foreach (var iface in type.Interfaces)
                 {
-                    bases.Add(new StringBuilder().AppendType(iface));
+                    if (!bases.Any(t => t.Interfaces.Contains(iface, SymbolEqualityComparer.Default)))
+                    {
+                        bases.RemoveAll(t => iface.Interfaces.Contains(t, SymbolEqualityComparer.Default));
+                        bases.Add(iface);
+                    }
                 }
             }
             else if (type.EnumUnderlyingType != null)
             {
-                bases.Add(new StringBuilder().AppendType(type.EnumUnderlyingType));
+                bases.Add(type.EnumUnderlyingType);
             }
             for (int i = 0; i < bases.Count; i++)
             {
-                sb.Append(i == 0 ? " : " : ", ").Append(bases[i]);
+                sb.Append(i == 0 ? " : " : ", ").AppendType(bases[i]);
             }
             sb.AppendTypeConstraints(constraints);
             PrintLine(sb.Append(" {").ToString(), indent, LineOption.LeaveOpen);
             foreach (var member in type.GetMembers())
             {
+                // TODO sort by kind, then static, then name, then arity, then param count, then param types
                 if (type.TypeKind == TypeKind.Enum)
                 {
+                    // TODO special case, sort exclusively by ConstantValue
                     if (member is IFieldSymbol field)
                     {
                         PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);

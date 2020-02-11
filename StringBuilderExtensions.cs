@@ -161,9 +161,9 @@ namespace ApiDump
                     {
                         constraint.Add("notnull");
                     }
-                    foreach (var cType in param.ConstraintTypes)
+                    foreach (var type in param.ConstraintTypes)
                     {
-                        constraint.Add(new StringBuilder().AppendType(cType).ToString());
+                        constraint.Add(new StringBuilder().AppendType(type).ToString());
                     }
                     if (param.HasConstructorConstraint)
                     {
