@@ -186,71 +186,60 @@ namespace ApiDump
                 sb.Append("enum ").Append(type.Name);
                 break;
             case TypeKind.Delegate:
-                sb.Append("delegate ")
-                    .AppendReturnSignature(type.DelegateInvokeMethod!)
-                    .Append(' ').Append(type.Name);
-                break;
+                if (type.DelegateInvokeMethod == null)
+                {
+                    throw new SimpleException($"Delegate type has null invoke method: {type}");
+                }
+                PrintLine(sb.Append("delegate ")
+                    .AppendReturnSignature(type.DelegateInvokeMethod)
+                    .Append(' ').Append(type.Name)
+                    .AppendTypeParameters(type.TypeParameters, out var delegateConstraints)
+                    .AppendParameters(type.DelegateInvokeMethod.Parameters)
+                    .AppendTypeConstraints(delegateConstraints)
+                    .Append(';').ToString(), indent);
+                return;
             default:
                 throw new SimpleException($"Named type {type} has unexpected kind {type.TypeKind}");
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
-            if (type.TypeKind == TypeKind.Delegate)
+            var bases = new List<StringBuilder>();
+            if (type.BaseType != null && type.TypeKind == TypeKind.Class
+                && type.BaseType.SpecialType != SpecialType.System_Object)
             {
-                sb.AppendParameters(type.DelegateInvokeMethod!.Parameters);
+                bases.Add(new StringBuilder().AppendType(type.BaseType));
             }
-            else
+            if (type.TypeKind != TypeKind.Enum)
             {
-                var bases = new List<StringBuilder>();
-                if (type.BaseType != null && type.TypeKind == TypeKind.Class
-                    && type.BaseType.SpecialType != SpecialType.System_Object)
+                foreach (var iface in type.Interfaces)
                 {
-                    bases.Add(new StringBuilder().AppendType(type.BaseType));
+                    bases.Add(new StringBuilder().AppendType(iface));
                 }
-                if (type.TypeKind != TypeKind.Enum)
-                {
-                    foreach (var iface in type.Interfaces)
-                    {
-                        bases.Add(new StringBuilder().AppendType(iface));
-                    }
-                }
-                else if (type.EnumUnderlyingType != null)
-                {
-                    bases.Add(new StringBuilder().AppendType(type.EnumUnderlyingType));
-                }
-                if (bases.Count != 0)
-                {
-                    sb.Append(" : ");
-                    for (int i = 0; i < bases.Count; i++)
-                    {
-                        if (i != 0) sb.Append(", ");
-                        sb.Append(bases[i]);
-                    }
-                }
+            }
+            else if (type.EnumUnderlyingType != null)
+            {
+                bases.Add(new StringBuilder().AppendType(type.EnumUnderlyingType));
+            }
+            for (int i = 0; i < bases.Count; i++)
+            {
+                sb.Append(i == 0 ? " : " : ", ").Append(bases[i]);
             }
             sb.AppendTypeConstraints(constraints);
-            if (type.TypeKind == TypeKind.Delegate)
+            PrintLine(sb.Append(" {").ToString(), indent, LineOption.LeaveOpen);
+            foreach (var member in type.GetMembers())
             {
-                PrintLine(sb.Append(';').ToString(), indent);
-            }
-            else
-            {
-                PrintLine(sb.Append(" {").ToString(), indent, LineOption.LeaveOpen);
-                foreach (var member in type.GetMembers())
+                if (type.TypeKind == TypeKind.Enum)
                 {
-                    if (type.TypeKind == TypeKind.Enum)
+                    if (member is IFieldSymbol field)
                     {
-                        if (member is IFieldSymbol field)
-                        {
-                            PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);
-                        }
-                    }
-                    else
-                    {
-                        PrintMember(member, indent + 1, type.TypeKind == TypeKind.Interface);
+                        PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);
                     }
                 }
-                PrintLine("}", indent, LineOption.Continue);
+                else
+                {
+                    PrintMember(member, indent + 1, type.TypeKind == TypeKind.Interface);
+                }
             }
+            PrintLine("}", indent, LineOption.Continue);
         }
 
         private static readonly char[] escapes
