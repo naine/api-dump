@@ -125,7 +125,7 @@ namespace ApiDump
         private static void PrintNamespace(INamespaceSymbol ns)
         {
             bool printed = false;
-            foreach (var type in ns.GetTypeMembers().OrderBy(t => t.MetadataName)) // TODO T`10 > T`2
+            foreach (var type in ns.GetTypeMembers().OrderBy(t => t, MemberOrdering.Comparer))
             {
                 if (type.DeclaredAccessibility == Accessibility.Public)
                 {
@@ -229,12 +229,10 @@ namespace ApiDump
             }
             sb.AppendTypeConstraints(constraints);
             PrintLine(sb.Append(" {").ToString(), indent, LineOption.LeaveOpen);
-            foreach (var member in type.GetMembers())
+            foreach (var member in type.GetMembers().OrderBy(t => t, MemberOrdering.Comparer))
             {
-                // TODO sort by kind, then static, then name, then arity, then param count, then param types
                 if (type.TypeKind == TypeKind.Enum)
                 {
-                    // TODO special case, sort exclusively by ConstantValue
                     if (member is IFieldSymbol field)
                     {
                         PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);
