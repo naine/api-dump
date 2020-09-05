@@ -1,7 +1,7 @@
 .PHONY: all clean
 
 all:
-	dotnet publish -c Release -r linux-x64 --force --no-self-contained -p:PublishSingleFile=true
+	dotnet publish ApiDump -c Release -r linux-x64 --force --no-self-contained -p:PublishSingleFile=true
 
 clean:
 	dotnet clean -c Release -v minimal
