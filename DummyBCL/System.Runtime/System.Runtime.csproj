@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <NoWarn>CS0169;CS8597;CS8618;CS8625;CS8777;$(NoWarn)</NoWarn>
+    <NoWarn>IDE0044;IDE0051;IDE0060;$(NoWarn)</NoWarn>
+    <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
+    <Version>4.2.2.0</Version>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>
+    <AssemblyOriginatorKeyFile>MSFT.snk</AssemblyOriginatorKeyFile>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+  </PropertyGroup>
+</Project>

@@ -12,6 +12,16 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace ApiDump
 {
+    /* The following (and probably some more) need to be handled correctly:
+     *  - Tuples.
+     *  - Nullable reference types.
+     *  - Nullable reference type generic parameter constraints.
+     *  - Default interface implementations.
+     *  - Show fixed buffers correctly as such, not as a pointer.
+     *  - Hide fixed buffers compiler auto-generated types.
+     *  - Type names should be qualified where ambiguous or nested and not in scope.
+     */
+
     static class Program
     {
         static int Main(string[] args)
