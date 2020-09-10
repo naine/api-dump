@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <RollForward>Major</RollForward>
     <PublishReadyToRun>true</PublishReadyToRun>
+    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <Authors>Nathan Williams</Authors>
     <Copyright>Copyright © Nathan Williams 2020</Copyright>
     <Description>Tool for dumping the types and API signatures of an IL assembly.</Description>
@@ -14,4 +15,20 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="3.7.0" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DummyBCL\**\*.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <OutputItemType>DummyBCL</OutputItemType>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(IntermediateOutputPath)DummyBCL.zip">
+      <Visible>false</Visible>
+      <Link>DummyBCL.zip</Link>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Target Name="ZipDummyBCL" BeforeTargets="BeforeCompile" Inputs="@(DummyBCL)" Outputs="$(IntermediateOutputPath)DummyBCL.zip">
+    <Copy SourceFiles="@(DummyBCL)" DestinationFolder="$(IntermediateOutputPath)DummyBCL" SkipUnchangedFiles="true" UseHardlinksIfPossible="true" />
+    <ZipDirectory SourceDirectory="$(IntermediateOutputPath)DummyBCL" DestinationFile="$(IntermediateOutputPath)DummyBCL.zip" Overwrite="true" />
+  </Target>
 </Project>

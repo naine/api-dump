@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -27,7 +28,7 @@ namespace ApiDump
         static int Main(string[] args)
         {
             var dlls = args.ToList();
-            bool noStdLib = dlls.Remove("--nostdlib");
+            bool useStdLib = !dlls.Remove("--nostdlib");
             if (dlls.Count == 0)
             {
                 Console.Error.WriteLine("Usage: {0} [--nostdlib] <dllpaths>...",
@@ -41,34 +42,18 @@ namespace ApiDump
                 {
                     refs.Add(MetadataReference.CreateFromFile(path));
                 }
-                if (!noStdLib)
+                if (useStdLib)
                 {
-                    string refDir = typeof(object).Assembly.Location;
-                    while (!"dotnet".Equals(Path.GetFileName(refDir), StringComparison.OrdinalIgnoreCase))
+                    using var zip = new ZipArchive(
+                        typeof(Program).Assembly.GetManifestResourceStream("ApiDump.DummyBCL.zip"));
+                    foreach (var entry in zip.Entries)
                     {
-                        refDir = Path.GetDirectoryName(refDir)
-                            ?? throw new SimpleException("Unable to find .NET Core SDK location");
-                    }
-                    refDir = Path.Combine(refDir, "packs", "Microsoft.NETCore.App.Ref");
-                    Version? maxVersion = null;
-                    foreach (string dir in Directory.EnumerateDirectories(refDir))
-                    {
-                        if (Version.TryParse(Path.GetFileName(dir), out var ver)
-                            && (maxVersion == null || ver > maxVersion))
-                        {
-                            refDir = dir;
-                            maxVersion = ver;
-                        }
-                    }
-                    if (maxVersion == null)
-                    {
-                        throw new SimpleException("No appropriate .NET Core targeting pack found");
-                    }
-                    refDir = Path.Combine(refDir, "ref", $"netcoreapp{maxVersion.Major}.{maxVersion.Minor}");
-                    foreach (string path in Directory.EnumerateFiles(
-                        refDir, "*.dll", SearchOption.AllDirectories))
-                    {
-                        refs.Add(MetadataReference.CreateFromFile(path));
+                        // CreateFromStream() requires a seekable stream for some reason.
+                        // ZipArchiveEntry streams are not, so we need to copy.
+                        using var memStream = new MemoryStream((int)entry.Length);
+                        using (var zipStream = entry.Open()) zipStream.CopyTo(memStream);
+                        memStream.Position = 0;
+                        refs.Add(MetadataReference.CreateFromStream(memStream));
                     }
                 }
                 var comp = CSharpCompilation.Create("dummy", null, refs,
