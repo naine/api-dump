@@ -1,14 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <LangVersion>latest</LangVersion>
     <Version>4.0.3.0</Version>
-    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
-    <SignAssembly>true</SignAssembly>
-    <PublicSign>true</PublicSign>
     <AssemblyOriginatorKeyFile>..\Open.snk</AssemblyOriginatorKeyFile>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\System.Runtime\System.Runtime.csproj" />
