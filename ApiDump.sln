@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "netstandard", "DummyBCL\net
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "System.ValueTuple", "DummyBCL\System.ValueTuple\System.ValueTuple.csproj", "{25F30C8B-467B-4E78-BF37-59F38A49A962}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TestAssembly", "TestAssembly\TestAssembly.csproj", "{EC37928F-327A-405B-9D53-D61B2B8E64B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -41,6 +43,10 @@ Global
 		{25F30C8B-467B-4E78-BF37-59F38A49A962}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{25F30C8B-467B-4E78-BF37-59F38A49A962}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{25F30C8B-467B-4E78-BF37-59F38A49A962}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC37928F-327A-405B-9D53-D61B2B8E64B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC37928F-327A-405B-9D53-D61B2B8E64B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC37928F-327A-405B-9D53-D61B2B8E64B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC37928F-327A-405B-9D53-D61B2B8E64B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
