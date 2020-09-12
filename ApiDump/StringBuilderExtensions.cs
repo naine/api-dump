@@ -71,6 +71,21 @@ namespace ApiDump
                 case SpecialType.System_String:
                     return sb.Append("string");
                 }
+                if (namedType.IsTupleType)
+                {
+                    sb.Append('(');
+                    for (int i = 0; i < namedType.TupleElements.Length; i++)
+                    {
+                        if (i != 0) sb.Append(", ");
+                        var element = namedType.TupleElements[i];
+                        sb.AppendType(element.Type);
+                        if (!SymbolEqualityComparer.Default.Equals(element, element.CorrespondingTupleField))
+                        {
+                            sb.Append(' ').Append(element.Name);
+                        }
+                    }
+                    return sb.Append(')');
+                }
                 sb.Append(namedType.Name);
                 if (namedType.TypeArguments.IsDefaultOrEmpty) return sb;
                 sb.Append('<');
@@ -91,6 +106,7 @@ namespace ApiDump
             {
                 TypeKind.Dynamic => "dynamic",
                 TypeKind.TypeParameter => type.Name,
+                // TODO: Support FunctionPointers.
                 _ => throw new SimpleException($"Type {type} has unexpected kind {type.TypeKind}"),
             });
         }

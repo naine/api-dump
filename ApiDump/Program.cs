@@ -14,7 +14,6 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace ApiDump
 {
     /* The following (and probably some more) need to be handled correctly:
-     *  - Tuples.
      *  - Nullable reference types.
      *  - Nullable reference type generic parameter constraints.
      *  - Default interface implementations.
@@ -69,7 +68,8 @@ namespace ApiDump
                     throw new SimpleException("Unexpected number of global namespaces: {0}",
                         globalNamespaces.Length);
                 }
-                if (!ReferenceEquals(globalNamespaces[0], comp.Assembly.GlobalNamespace))
+                if (!SymbolEqualityComparer.Default.Equals(
+                    globalNamespaces[0], comp.Assembly.GlobalNamespace))
                 {
                     throw new SimpleException("Unexpected first global namespace: {0}",
                         globalNamespaces[0].ContainingAssembly.Name);
