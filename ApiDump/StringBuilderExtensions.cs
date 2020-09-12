@@ -72,7 +72,7 @@ namespace ApiDump
                     return sb.Append("string");
                 }
                 sb.Append(namedType.Name);
-                if (!namedType.IsGenericType) return sb;
+                if (namedType.TypeArguments.IsDefaultOrEmpty) return sb;
                 sb.Append('<');
                 for (int i = 0; i < namedType.TypeArguments.Length; i++)
                 {
