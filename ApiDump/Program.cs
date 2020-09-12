@@ -17,7 +17,7 @@ namespace ApiDump
      *  - Nullable reference types.
      *  - Nullable reference type generic parameter constraints.
      *  - Default interface implementations.
-     *  - Show fixed buffers correctly as such, not as a pointer.
+     *  - Show fixed buffers with their sizes.
      *  - Hide fixed buffers compiler auto-generated types.
      *  - Type names should be qualified where ambiguous or nested and not in scope.
      */
@@ -305,7 +305,12 @@ namespace ApiDump
             switch (member)
             {
             case IFieldSymbol field:
-                if (field.IsConst)
+                bool isFixed = field.IsFixedSizeBuffer;
+                if (isFixed)
+                {
+                    sb.Append("fixed ");
+                }
+                else if (field.IsConst)
                 {
                     sb.Append("const ");
                 }
@@ -315,21 +320,26 @@ namespace ApiDump
                     if (field.IsReadOnly) sb.Append("readonly ");
                     else if (field.IsVolatile) sb.Append("volatile ");
                 }
-                sb.AppendType(field.Type).Append(' ').Append(field.Name);
-                if (field.IsConst)
+                sb.AppendType(isFixed ? ((IPointerTypeSymbol)field.Type).PointedAtType : field.Type);
+                sb.Append(' ').Append(field.Name);
+                if (isFixed)
+                {
+                    sb.Append("[]");
+                }
+                else if (field.HasConstantValue)
                 {
                     sb.Append(" = ");
                     if (field.ConstantValue is string s)
                     {
                         sb.Append('"');
-                        foreach (char c in s)
+                        foreach (int c in s)
                         {
                             if (c < escapes.Length && escapes[c] != 0) sb.Append('\\').Append(escapes[c]);
-                            else if (c < 32 || c == 127) sb.Append($"\\x{(int)c:x2}");
+                            else if (c < 32 || c == 127) sb.Append($"\\x{c:x2}");
                             else if (c == '\\') sb.Append("\\\\");
                             else if (c == '"') sb.Append("\\\"");
-                            else if (c < 127) sb.Append(c);
-                            else sb.Append($"\\u{(int)c:x4}");
+                            else if (c < 127) sb.Append((char)c);
+                            else sb.Append($"\\u{c:x4}");
                         }
                         sb.Append('"');
                     }
