@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RollForward>Major</RollForward>
-    <PublishReadyToRun>true</PublishReadyToRun>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <Authors>Nathan Williams</Authors>
     <Copyright>Copyright © Nathan Williams 2020</Copyright>
