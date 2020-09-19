@@ -92,28 +92,35 @@ namespace ApiDump
             return 0;
         }
 
-        private static bool lineOpen = false;
+        private static bool emptyBlockOpen = false;
 
-        private enum LineOption
+        private static void PrintLine(string line, int indent, bool openBlock = false)
         {
-            None, LeaveOpen, Continue
+            if (emptyBlockOpen)
+            {
+                Console.WriteLine();
+                for (int i = 1; i < indent; ++i) Console.Write("    ");
+                Console.WriteLine('{');
+            }
+            for (int i = 0; i < indent; ++i) Console.Write("    ");
+            Console.Write(line);
+            if (!(emptyBlockOpen = openBlock))
+            {
+                Console.WriteLine();
+            }
         }
 
-        private static void PrintLine(string line, int indent, LineOption option = LineOption.None)
+        private static void PrintEndBlock(int indent)
         {
-            if (lineOpen && option != LineOption.Continue) Console.WriteLine();
-            if (lineOpen && option == LineOption.Continue)
+            if (emptyBlockOpen)
             {
-                Console.Write(' ');
+                Console.WriteLine(" { }");
+                emptyBlockOpen = false;
             }
             else
             {
                 for (int i = 0; i < indent; ++i) Console.Write("    ");
-            }
-            Console.Write(line);
-            if (!(lineOpen = option == LineOption.LeaveOpen))
-            {
-                Console.WriteLine();
+                Console.WriteLine('}');
             }
         }
 
@@ -126,7 +133,8 @@ namespace ApiDump
                 {
                     if (!printed && !ns.IsGlobalNamespace)
                     {
-                        PrintLine($"namespace {FullName(ns)} {{", 0);
+                        PrintLine($"namespace {FullName(ns)}", 0);
+                        PrintLine("{", 0);
                         printed = true;
                     }
                     PrintType(type, ns.IsGlobalNamespace ? 0 : 1);
@@ -223,22 +231,19 @@ namespace ApiDump
                 sb.Append(i == 0 ? " : " : ", ").AppendType(bases[i]);
             }
             sb.AppendTypeConstraints(constraints);
-            PrintLine(sb.Append(" {").ToString(), indent, LineOption.LeaveOpen);
+            PrintLine(sb.ToString(), indent, openBlock: true);
             foreach (var member in type.GetMembers().OrderBy(t => t, MemberOrdering.Comparer))
             {
-                if (type.TypeKind == TypeKind.Enum)
-                {
-                    if (member is IFieldSymbol field)
-                    {
-                        PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);
-                    }
-                }
-                else
+                if (type.TypeKind != TypeKind.Enum)
                 {
                     PrintMember(member, indent + 1, type.TypeKind == TypeKind.Interface);
                 }
+                else if (member is IFieldSymbol field)
+                {
+                    PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);
+                }
             }
-            PrintLine("}", indent, LineOption.Continue);
+            PrintEndBlock(indent);
         }
 
         private static readonly char[] escapes

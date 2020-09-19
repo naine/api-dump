@@ -8,6 +8,8 @@ using System.IO;
 
 namespace TestAssembly
 {
+    public static class EmptyClass { }
+
     public class TopClass : IDisposable, IEnumerable
     {
         public IEnumerator GetEnumerator() => throw new NotImplementedException();
