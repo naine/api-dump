@@ -31,45 +31,35 @@ namespace ApiDump
             return sb.Append(name).Append("; ");
         }
 
+        private static readonly Dictionary<SpecialType, string> keywordTypes
+            = new Dictionary<SpecialType, string>
+            {
+                [SpecialType.System_Object] = "object",
+                [SpecialType.System_Void] = "void",
+                [SpecialType.System_Byte] = "byte",
+                [SpecialType.System_SByte] = "sbyte",
+                [SpecialType.System_Int16] = "short",
+                [SpecialType.System_UInt16] = "ushort",
+                [SpecialType.System_Int32] = "int",
+                [SpecialType.System_UInt32] = "uint",
+                [SpecialType.System_Int64] = "long",
+                [SpecialType.System_UInt64] = "ulong",
+                [SpecialType.System_Single] = "float",
+                [SpecialType.System_Double] = "double",
+                [SpecialType.System_Decimal] = "decimal",
+                [SpecialType.System_Boolean] = "bool",
+                [SpecialType.System_Char] = "char",
+                [SpecialType.System_String] = "string",
+            };
+
         public static StringBuilder AppendType(this StringBuilder sb, ITypeSymbol type)
         {
             switch (type)
             {
             case INamedTypeSymbol namedType:
-                switch (namedType.SpecialType)
+                if (keywordTypes.TryGetValue(namedType.SpecialType, out var keyword))
                 {
-                case SpecialType.System_Boolean:
-                    return sb.Append("bool");
-                case SpecialType.System_Object:
-                    return sb.Append("object");
-                case SpecialType.System_Void:
-                    return sb.Append("void");
-                case SpecialType.System_Char:
-                    return sb.Append("char");
-                case SpecialType.System_SByte:
-                    return sb.Append("sbyte");
-                case SpecialType.System_Byte:
-                    return sb.Append("byte");
-                case SpecialType.System_Int16:
-                    return sb.Append("short");
-                case SpecialType.System_UInt16:
-                    return sb.Append("ushort");
-                case SpecialType.System_Int32:
-                    return sb.Append("int");
-                case SpecialType.System_UInt32:
-                    return sb.Append("uint");
-                case SpecialType.System_Int64:
-                    return sb.Append("long");
-                case SpecialType.System_UInt64:
-                    return sb.Append("ulong");
-                case SpecialType.System_Decimal:
-                    return sb.Append("decimal");
-                case SpecialType.System_Single:
-                    return sb.Append("float");
-                case SpecialType.System_Double:
-                    return sb.Append("double");
-                case SpecialType.System_String:
-                    return sb.Append("string");
+                    return sb.Append(keyword);
                 }
                 if (namedType.IsTupleType)
                 {

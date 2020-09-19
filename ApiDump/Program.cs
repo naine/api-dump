@@ -244,6 +244,42 @@ namespace ApiDump
         private static readonly char[] escapes
             = { '0', '\0', '\0', '\0', '\0', '\0', '\0', 'a', 'b', 't', 'n', 'v', 'f', 'r' };
 
+        private static readonly Dictionary<string, string> conversionNames
+            = new Dictionary<string, string>
+            {
+                [WellKnownMemberNames.ExplicitConversionName] = "explicit",
+                [WellKnownMemberNames.ImplicitConversionName] = "implicit",
+            };
+
+        private static readonly Dictionary<string, string> operators
+            = new Dictionary<string, string>
+            {
+                [WellKnownMemberNames.AdditionOperatorName] = "+",
+                [WellKnownMemberNames.BitwiseAndOperatorName] = "&",
+                [WellKnownMemberNames.BitwiseOrOperatorName] = "|",
+                [WellKnownMemberNames.DecrementOperatorName] = "--",
+                [WellKnownMemberNames.DivisionOperatorName] = "/",
+                [WellKnownMemberNames.EqualityOperatorName] = "==",
+                [WellKnownMemberNames.ExclusiveOrOperatorName] = "^",
+                [WellKnownMemberNames.FalseOperatorName] = "false",
+                [WellKnownMemberNames.GreaterThanOperatorName] = ">",
+                [WellKnownMemberNames.GreaterThanOrEqualOperatorName] = ">=",
+                [WellKnownMemberNames.IncrementOperatorName] = "++",
+                [WellKnownMemberNames.InequalityOperatorName] = "!=",
+                [WellKnownMemberNames.LeftShiftOperatorName] = "<<",
+                [WellKnownMemberNames.LessThanOperatorName] = "<",
+                [WellKnownMemberNames.LessThanOrEqualOperatorName] = "<=",
+                [WellKnownMemberNames.LogicalNotOperatorName] = "!",
+                [WellKnownMemberNames.ModulusOperatorName] = "%",
+                [WellKnownMemberNames.MultiplyOperatorName] = "*",
+                [WellKnownMemberNames.OnesComplementOperatorName] = "~",
+                [WellKnownMemberNames.RightShiftOperatorName] = ">>",
+                [WellKnownMemberNames.SubtractionOperatorName] = "-",
+                [WellKnownMemberNames.TrueOperatorName] = "true",
+                [WellKnownMemberNames.UnaryNegationOperatorName] = "-",
+                [WellKnownMemberNames.UnaryPlusOperatorName] = "+",
+            };
+
         private static void PrintMember(ISymbol member, int indent, bool inInterface)
         {
             if (member.Kind == SymbolKind.Method)
@@ -297,13 +333,11 @@ namespace ApiDump
                             member.Kind, member.DeclaredAccessibility, member);
                 }
             }
-            if (member is INamedTypeSymbol nestedType)
-            {
-                PrintType(nestedType, indent);
-                return;
-            }
             switch (member)
             {
+            case INamedTypeSymbol nestedType:
+                PrintType(nestedType, indent);
+                break;
             case IFieldSymbol field:
                 bool isFixed = field.IsFixedSizeBuffer;
                 if (isFixed)
@@ -349,7 +383,7 @@ namespace ApiDump
                     }
                 }
                 PrintLine(sb.Append(';').ToString(), indent);
-                return;
+                break;
             case IEventSymbol eventSymbol:
                 if (eventSymbol.IsStatic)
                 {
@@ -367,7 +401,7 @@ namespace ApiDump
                 }
                 PrintLine(sb.Append("event ").AppendType(eventSymbol.Type).Append(' ')
                     .Append(eventSymbol.Name).Append(';').ToString(), indent);
-                return;
+                break;
             case IMethodSymbol method:
                 switch (method.MethodKind)
                 {
@@ -392,7 +426,24 @@ namespace ApiDump
                         if (method.IsAbstract) sb.Append("abstract ");
                         else if (method.IsVirtual) sb.Append("virtual ");
                     }
-                    sb.AppendReturnSignature(method).Append(' ').Append(method.Name);
+                    if (method.MethodKind == MethodKind.Conversion
+                        && conversionNames.TryGetValue(method.Name, out var keyword))
+                    {
+                        sb.Append(keyword).Append(" operator ").AppendType(method.ReturnType);
+                    }
+                    else
+                    {
+                        sb.AppendReturnSignature(method).Append(' ');
+                        if (method.MethodKind == MethodKind.UserDefinedOperator
+                            && operators.TryGetValue(method.Name, out var opToken))
+                        {
+                            sb.Append("operator ").Append(opToken);
+                        }
+                        else
+                        {
+                            sb.Append(method.Name);
+                        }
+                    }
                     sb.AppendTypeParameters(method.TypeParameters, out var constraints);
                     sb.AppendParameters(method.Parameters);
                     sb.AppendTypeConstraints(constraints);
