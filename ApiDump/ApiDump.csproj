@@ -1,12 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <AssemblyName>apidump</AssemblyName>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <RollForward>Major</RollForward>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <Authors>Nathan Williams</Authors>
     <Copyright>Copyright © Nathan Williams 2020</Copyright>
-    <Description>Tool for dumping the types and API signatures of an IL assembly.</Description>
+    <Description>Tool for displaying the public types and API signatures of a .NET IL assembly.</Description>
     <Version>0.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
