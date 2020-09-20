@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENCE file in the project root
 // for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
@@ -101,7 +102,7 @@ namespace ApiDump
                 TypeKind.Dynamic => "dynamic",
                 TypeKind.TypeParameter => type.Name,
                 // TODO: Support FunctionPointers.
-                _ => throw new SimpleException($"Type {type} has unexpected kind {type.TypeKind}"),
+                _ => throw new Exception($"Type {type} has unexpected kind {type.TypeKind}"),
             });
         }
 
@@ -129,7 +130,7 @@ namespace ApiDump
                     RefKind.Out => "out ",
                     RefKind.In => "in ",
                     RefKind.None => "",
-                    _ => throw new SimpleException($"Invalid ref kind: {p.RefKind}"),
+                    _ => throw new Exception($"Invalid ref kind: {p.RefKind}"),
                 }).AppendType(p.Type).Append(' ').Append(p.Name);
             }
             return withParentheses ? sb.Append(')') : sb;
@@ -152,7 +153,7 @@ namespace ApiDump
                         VarianceKind.In => "in ",
                         VarianceKind.Out => "out ",
                         VarianceKind.None => "",
-                        _ => throw new SimpleException($"Invalid variance kind: {param.Variance}"),
+                        _ => throw new Exception($"Invalid variance kind: {param.Variance}"),
                     }).Append(param.Name);
                     var constraint = new List<string>();
                     if (param.HasUnmanagedTypeConstraint)

@@ -60,29 +60,23 @@ namespace ApiDump
                 var errors = comp.GetDiagnostics();
                 if (!errors.IsDefaultOrEmpty)
                 {
-                    throw new SimpleException($"Compilation has errors:\n{string.Join('\n', errors)}");
+                    throw new Exception($"Compilation has errors:\n{string.Join('\n', errors)}");
                 }
                 var globalNamespaces = comp.GlobalNamespace.ConstituentNamespaces;
                 if (globalNamespaces.Length != refs.Count + 1)
                 {
-                    throw new SimpleException("Unexpected number of global namespaces: {0}",
-                        globalNamespaces.Length);
+                    throw new Exception($"Unexpected number of global namespaces: {globalNamespaces.Length}");
                 }
                 if (!SymbolEqualityComparer.Default.Equals(
                     globalNamespaces[0], comp.Assembly.GlobalNamespace))
                 {
-                    throw new SimpleException("Unexpected first global namespace: {0}",
-                        globalNamespaces[0].ContainingAssembly.Name);
+                    throw new Exception("Unexpected first global namespace:"
+                        + $" {globalNamespaces[0].ContainingAssembly.Name}");
                 }
                 for (int i = 1; i <= dlls.Count; ++i)
                 {
                     PrintNamespace(globalNamespaces[i]);
                 }
-            }
-            catch (SimpleException ex)
-            {
-                Console.Error.WriteLine("Error: {0}", ex.Message);
-                return 2;
             }
             catch (Exception ex)
             {
@@ -166,8 +160,7 @@ namespace ApiDump
                 sb.Append("protected ");
                 break;
             default:
-                throw new SimpleException("Type {0} has unexpected visibility {1}",
-                    type, type.DeclaredAccessibility);
+                throw new Exception($"Type {type} has unexpected visibility {type.DeclaredAccessibility}");
             }
             switch (type.TypeKind)
             {
@@ -191,7 +184,7 @@ namespace ApiDump
             case TypeKind.Delegate:
                 if (type.DelegateInvokeMethod == null)
                 {
-                    throw new SimpleException($"Delegate type has null invoke method: {type}");
+                    throw new Exception($"Delegate type has null invoke method: {type}");
                 }
                 PrintLine(sb.Append("delegate ")
                     .AppendReturnSignature(type.DelegateInvokeMethod)
@@ -202,7 +195,7 @@ namespace ApiDump
                     .Append(';').ToString(), indent);
                 return;
             default:
-                throw new SimpleException($"Named type {type} has unexpected kind {type.TypeKind}");
+                throw new Exception($"Named type {type} has unexpected kind {type.TypeKind}");
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
             var bases = new List<INamedTypeSymbol>();
@@ -334,8 +327,8 @@ namespace ApiDump
                     case Accessibility.Internal:
                         return;
                     default:
-                        throw new SimpleException("{0} member has unexpected visibility {1}: {2}",
-                            member.Kind, member.DeclaredAccessibility, member);
+                        throw new Exception($"{member.Kind} member has unexpected"
+                            + $" visibility {member.DeclaredAccessibility}: {member}");
                 }
             }
             switch (member)
@@ -455,7 +448,7 @@ namespace ApiDump
                     PrintLine(sb.Append(';').ToString(), indent);
                     break;
                 default:
-                    throw new SimpleException($"Unexpected method kind {method.MethodKind}: {method}");
+                    throw new Exception($"Unexpected method kind {method.MethodKind}: {method}");
                 }
                 break;
             case IPropertySymbol property:
@@ -496,17 +489,8 @@ namespace ApiDump
                 PrintLine(sb.Append('}').ToString(), indent);
                 break;
             default:
-                throw new SimpleException($"Unexpected member kind {member.Kind}: {member}");
+                throw new Exception($"Unexpected member kind {member.Kind}: {member}");
             }
         }
-    }
-
-    class SimpleException : Exception
-    {
-        public SimpleException(string message)
-            : base(message) { }
-
-        public SimpleException(string format, params object?[] args)
-            : base(string.Format(format, args)) { }
     }
 }
