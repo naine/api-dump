@@ -61,6 +61,10 @@ namespace ApiDump
                 {
                     return sb.Append(keyword);
                 }
+                if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+                {
+                    return sb.AppendType(namedType.TypeArguments[0]).Append('?');
+                }
                 if (namedType.IsTupleType)
                 {
                     sb.Append('(');

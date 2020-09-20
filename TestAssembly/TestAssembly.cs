@@ -25,7 +25,7 @@ namespace TestAssembly
         public virtual dynamic Foo4(out (int a, double b) x) => throw new NotImplementedException();
         public void Foo5(dynamic x) { }
         public static void Foo6(GenContainer<int>.GenEnum x) { }
-        public static void Foo7((int a, int, int c, int, int e, int, int g, int, int i, int) x) { }
+        public static void Foo7((int a, int, int c, int, int e, int, int g, int, int? i, int) x) { }
     }
 
     public static class GenContainer<T>
