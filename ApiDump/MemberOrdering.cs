@@ -8,7 +8,7 @@ using Microsoft.CodeAnalysis;
 
 namespace ApiDump
 {
-    class MemberOrdering : IComparer<ISymbol>
+    class MemberOrdering : IComparer<ISymbol?>
     {
         public static readonly MemberOrdering Comparer = new MemberOrdering();
 

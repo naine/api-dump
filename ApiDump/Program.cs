@@ -25,6 +25,8 @@ namespace ApiDump
 
     static class Program
     {
+        private static bool showAllInterfaces = false;
+
         static int Main(string[] args)
         {
             var dlls = new List<string>();
@@ -37,6 +39,9 @@ namespace ApiDump
                     {
                     case "--no-bcl":
                         useInternalBCL = false;
+                        break;
+                    case "--all-interfaces":
+                        showAllInterfaces = true;
                         break;
                     case "--help":
                         PrintHelp();
@@ -125,10 +130,11 @@ namespace ApiDump
 
         private static void PrintHelp()
         {
+            // TODO: Improve help text. Just say [options] and list them below with descriptions.
             var assembly = typeof(Program).Assembly;
             PrintVersion(assembly);
             Console.WriteLine();
-            Console.WriteLine("Usage: {0} [--no-bcl] <dllpaths>...",
+            Console.WriteLine("Usage: {0} [--no-bcl] [--all-interfaces] <dllpaths>...",
                 Path.GetFileNameWithoutExtension(assembly.Location));
         }
 
@@ -164,10 +170,15 @@ namespace ApiDump
             }
         }
 
+        private static readonly Func<ISymbol?, ISymbol?> identity = s => s;
+
+        private static IOrderedEnumerable<T> Sort<T>(IEnumerable<T> symbols) where T : class?, ISymbol?
+            => symbols.OrderBy<T, ISymbol?>(identity, MemberOrdering.Comparer);
+
         private static void PrintNamespace(INamespaceSymbol ns)
         {
             bool printed = false;
-            foreach (var type in ns.GetTypeMembers().OrderBy(t => t, MemberOrdering.Comparer))
+            foreach (var type in Sort(ns.GetTypeMembers()))
             {
                 if (type.DeclaredAccessibility == Accessibility.Public)
                 {
@@ -252,13 +263,19 @@ namespace ApiDump
             }
             if (type.TypeKind != TypeKind.Enum)
             {
-                foreach (var iface in type.Interfaces)
+                foreach (var iface in Sort(type.Interfaces))
                 {
-                    if (!bases.Any(t => t.Interfaces.Contains(iface, SymbolEqualityComparer.Default)))
+                    if (!showAllInterfaces)
                     {
+                        // Don't add an interface inherited by one already added.
+                        if (bases.Any(t => t.Interfaces.Contains(iface, SymbolEqualityComparer.Default)))
+                        {
+                            continue;
+                        }
+                        // Remove any previously added interfaces inherited by the one we're adding now.
                         bases.RemoveAll(t => iface.Interfaces.Contains(t, SymbolEqualityComparer.Default));
-                        bases.Add(iface);
                     }
+                    bases.Add(iface);
                 }
             }
             else if (type.EnumUnderlyingType != null)
@@ -271,7 +288,7 @@ namespace ApiDump
             }
             sb.AppendTypeConstraints(constraints);
             PrintLine(sb.ToString(), indent, openBlock: true);
-            foreach (var member in type.GetMembers().OrderBy(t => t, MemberOrdering.Comparer))
+            foreach (var member in Sort(type.GetMembers()))
             {
                 if (type.TypeKind != TypeKind.Enum)
                 {

@@ -3,7 +3,7 @@ Tool for displaying the public types and API signatures of a .NET IL assembly.
 
 Usage:
 ```
-apidump [--no-bcl] <dllpaths>...
+apidump [--no-bcl] [--all-interfaces] <dllpaths>...
 ```
 
 By default, ApiDump uses internal versions of BCL assemblies to resolve external
