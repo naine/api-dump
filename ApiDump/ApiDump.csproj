@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk" InitialTargets="GitVersions">
   <PropertyGroup>
     <AssemblyName>apidump</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -28,5 +28,19 @@
   <Target Name="ZipDummyBCL" BeforeTargets="BeforeCompile" Inputs="@(DummyBCL)" Outputs="$(IntermediateOutputPath)DummyBCL.zip">
     <Copy SourceFiles="@(DummyBCL)" DestinationFolder="$(IntermediateOutputPath)DummyBCL" SkipUnchangedFiles="true" UseHardlinksIfPossible="true" />
     <ZipDirectory SourceDirectory="$(IntermediateOutputPath)DummyBCL" DestinationFile="$(IntermediateOutputPath)DummyBCL.zip" Overwrite="true" />
+  </Target>
+  <Target Name="GitVersions">
+    <Exec Command="git rev-list --count HEAD" ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitRevCount" />
+      <Output TaskParameter="ExitCode" PropertyName="GitExitCode" />
+    </Exec>
+    <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" Condition="'$(GitExitCode)'=='0'">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitCommit" />
+      <Output TaskParameter="ExitCode" PropertyName="GitExitCode" />
+    </Exec>
+    <PropertyGroup Condition="'$(GitExitCode)'=='0'">
+      <Version>$(Version).$(GitRevCount)</Version>
+      <InformationalVersion>$(Version)-$(GitCommit)</InformationalVersion>
+    </PropertyGroup>
   </Target>
 </Project>
