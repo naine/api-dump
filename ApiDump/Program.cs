@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -26,12 +27,37 @@ namespace ApiDump
     {
         static int Main(string[] args)
         {
-            var dlls = args.ToList();
-            bool useInternalBCL = !dlls.Remove("--no-bcl");
+            var dlls = new List<string>();
+            bool useInternalBCL = true;
+            foreach (string arg in args)
+            {
+                if (arg.StartsWith('-'))
+                {
+                    switch (arg)
+                    {
+                    case "--no-bcl":
+                        useInternalBCL = false;
+                        break;
+                    case "--help":
+                        PrintHelp();
+                        return 0;
+                    case "--version":
+                        if (args.Contains("--help")) goto case "--help";
+                        PrintVersion();
+                        return 0;
+                    default:
+                        Console.Error.WriteLine("Error: Unknown option '{0}'", arg);
+                        return 1;
+                    }
+                }
+                else
+                {
+                    dlls.Add(arg);
+                }
+            }
             if (dlls.Count == 0)
             {
-                Console.Error.WriteLine("Usage: {0} [--no-bcl] <dllpaths>...",
-                    Path.GetFileNameWithoutExtension(typeof(Program).Assembly.Location));
+                Console.Error.WriteLine("Error: No input files. Use --help to show usage.");
                 return 1;
             }
             try
@@ -84,6 +110,26 @@ namespace ApiDump
                 return -1;
             }
             return 0;
+        }
+
+        private static void PrintVersion(Assembly? assembly = null)
+        {
+            assembly ??= typeof(Program).Assembly;
+            var attribute = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+            Console.WriteLine($"{nameof(ApiDump)} version {{0}}",
+                attribute?.InformationalVersion ?? assembly.GetName().Version!.ToString(3));
+
+            var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
+            if (copyright != null) Console.WriteLine(copyright.Copyright);
+        }
+
+        private static void PrintHelp()
+        {
+            var assembly = typeof(Program).Assembly;
+            PrintVersion(assembly);
+            Console.WriteLine();
+            Console.WriteLine("Usage: {0} [--no-bcl] <dllpaths>...",
+                Path.GetFileNameWithoutExtension(assembly.Location));
         }
 
         private static bool emptyBlockOpen = false;
