@@ -27,10 +27,10 @@ namespace ApiDump
         static int Main(string[] args)
         {
             var dlls = args.ToList();
-            bool useStdLib = !dlls.Remove("--nostdlib");
+            bool useInternalBCL = !dlls.Remove("--no-bcl");
             if (dlls.Count == 0)
             {
-                Console.Error.WriteLine("Usage: {0} [--nostdlib] <dllpaths>...",
+                Console.Error.WriteLine("Usage: {0} [--no-bcl] <dllpaths>...",
                     Path.GetFileNameWithoutExtension(typeof(Program).Assembly.Location));
                 return 1;
             }
@@ -41,7 +41,7 @@ namespace ApiDump
                 {
                     refs.Add(MetadataReference.CreateFromFile(path));
                 }
-                if (useStdLib)
+                if (useInternalBCL)
                 {
                     using var zip = new ZipArchive(
                         typeof(Program).Assembly.GetManifestResourceStream("ApiDump.DummyBCL.zip"));
