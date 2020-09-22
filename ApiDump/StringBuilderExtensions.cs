@@ -194,7 +194,7 @@ namespace ApiDump
         public static StringBuilder AppendTypeConstraints(this StringBuilder sb,
             List<(string, List<string>)>? constraints)
         {
-            if (constraints != null)
+            if (!(constraints is null))
             {
                 foreach ((string param, var constraint) in constraints)
                 {

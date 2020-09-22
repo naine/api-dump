@@ -124,8 +124,9 @@ namespace ApiDump
             Console.WriteLine($"{nameof(ApiDump)} version {{0}}",
                 attribute?.InformationalVersion ?? assembly.GetName().Version!.ToString(3));
 
+            // TODO: Convert this pattern to use 'is not null' when C# 9 is out of preview.
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
-            if (copyright != null) Console.WriteLine(copyright.Copyright);
+            if (!(copyright is null)) Console.WriteLine(copyright.Copyright);
         }
 
         private static void PrintHelp()
@@ -239,7 +240,7 @@ namespace ApiDump
                 sb.Append("enum ").Append(type.Name);
                 break;
             case TypeKind.Delegate:
-                if (type.DelegateInvokeMethod == null)
+                if (type.DelegateInvokeMethod is null)
                 {
                     throw new Exception($"Delegate type has null invoke method: {type}");
                 }
@@ -256,7 +257,7 @@ namespace ApiDump
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
             var bases = new List<INamedTypeSymbol>();
-            if (type.BaseType != null && type.TypeKind == TypeKind.Class
+            if (!(type.BaseType is null) && type.TypeKind == TypeKind.Class
                 && type.BaseType.SpecialType != SpecialType.System_Object)
             {
                 bases.Add(type.BaseType);
@@ -278,7 +279,7 @@ namespace ApiDump
                     bases.Add(iface);
                 }
             }
-            else if (type.EnumUnderlyingType != null)
+            else if (!(type.EnumUnderlyingType is null))
             {
                 bases.Add(type.EnumUnderlyingType);
             }
@@ -541,11 +542,11 @@ namespace ApiDump
                     sb.Append(property.Name);
                 }
                 sb.Append(" { ");
-                if (property.GetMethod != null)
+                if (!(property.GetMethod is null))
                 {
                     sb.AppendAccessor("get", property.GetMethod, property);
                 }
-                if (property.SetMethod != null)
+                if (!(property.SetMethod is null))
                 {
                     sb.AppendAccessor("set", property.SetMethod, property);
                 }

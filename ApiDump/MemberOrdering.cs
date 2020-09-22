@@ -16,8 +16,8 @@ namespace ApiDump
 
         public int Compare(ISymbol? x, ISymbol? y)
         {
-            if (x == null) return y == null ? 0 : -1;
-            if (y == null) return 1;
+            if (x is null) return y is null ? 0 : -1;
+            if (y is null) return 1;
             int c;
             // Special case enum values, sort by value over name.
             if (x.ContainingType?.TypeKind == TypeKind.Enum &&
