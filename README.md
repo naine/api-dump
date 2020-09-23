@@ -24,6 +24,13 @@ on the [ApiDump](ApiDump/ApiDump.csproj) project.
 $ apidump [options] <dllpaths>...
 ```
 
+<!---
+    IMPORTANT NOTE!
+
+    The below markdown is embedded and used by the code to generate the --help output.
+    Take care when editing it and update `ApiDump.Program.PrintHelp()` if necessary.
+--->
+
 #### Options
 
 - `-h`, `--help`

@@ -22,10 +22,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="$(IntermediateOutputPath)DummyBCL.zip">
-      <Visible>false</Visible>
-      <Link>DummyBCL.zip</Link>
-    </EmbeddedResource>
+    <EmbeddedResource Include="..\README.md" />
+    <EmbeddedResource Include="$(IntermediateOutputPath)DummyBCL.zip" Link="DummyBCL.zip" Visible="false" />
   </ItemGroup>
   <Target Name="ZipDummyBCL" BeforeTargets="BeforeCompile" Inputs="@(DummyBCL)" Outputs="$(IntermediateOutputPath)DummyBCL.zip">
     <Copy SourceFiles="@(DummyBCL)" DestinationFolder="$(IntermediateOutputPath)DummyBCL" SkipUnchangedFiles="true" UseHardlinksIfPossible="true" />

@@ -9,18 +9,30 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace ApiDump
 {
-    /* The following (and probably some more) need to be handled correctly:
-     *  - Nullable reference types.
-     *  - Nullable reference type generic parameter constraints.
-     *  - Default interface implementations.
+    /* TODO: The following need to be handled correctly:
      *  - Show fixed buffers with their sizes.
      *  - Hide fixed buffers compiler auto-generated types.
      *  - Type names should be qualified where ambiguous or nested and not in scope.
+     *  - Some attributes should be displayed (be selective).
+     *    + Include attributes that compile into IL metadata, such as StructLayout.
+     *    + Include attributes that visibly affect consumers, like Obsolete, AllowNull, etc.
+     *  - C# 8 features:
+     *    + Nullable reference types (optional via arg switch).
+     *    + Nullable reference type generic parameter constraints.
+     *    + Default interface implementations.
+     *    + Readonly instance members.
+     *  - C# 9 features:
+     *    + Native-sized integers.
+     *    + Raw function pointers.
+     *    + Init accessors.
+     *    + Records (maybe unless they are API-wise indistinguishable from classes).
+     *    + Maybe more. Evaluate when C# 9 leaves preview.
      */
 
     static class Program
@@ -77,7 +89,7 @@ namespace ApiDump
                 if (useInternalBCL)
                 {
                     using var zip = new ZipArchive(
-                        typeof(Program).Assembly.GetManifestResourceStream("ApiDump.DummyBCL.zip"));
+                        typeof(Program).Assembly.GetManifestResourceStream($"{nameof(ApiDump)}.DummyBCL.zip"));
                     foreach (var entry in zip.Entries)
                     {
                         // CreateFromStream() requires a seekable stream for some reason.
@@ -133,12 +145,76 @@ namespace ApiDump
 
         private static void PrintHelp()
         {
-            // TODO: Improve help text. Just say [options] and list them below with descriptions.
             var assembly = typeof(Program).Assembly;
             PrintVersion(assembly);
             Console.WriteLine();
-            Console.WriteLine("Usage: {0} [--no-bcl] [--all-interfaces] <dllpaths>...",
+            Console.WriteLine("Usage: {0} [options] <dllpaths>...",
                 Path.GetFileNameWithoutExtension(assembly.Location));
+
+            string readme;
+            using (var stream = assembly.GetManifestResourceStream($"{nameof(ApiDump)}.README.md"))
+            {
+                if (stream is null) return;
+                if (stream is MemoryStream ms && ms.TryGetBuffer(out var msBuffer))
+                {
+                    // Optimistic case that avoids an extra copy/buffering layer.
+                    // Realistically only one of these paths should ever be used on any
+                    // given runtime, but it can't hurt to have both this and a fallback.
+                    readme = Encoding.UTF8.GetString(msBuffer);
+                }
+                else
+                {
+                    using var reader = new StreamReader(stream, Encoding.UTF8, false);
+                    readme = reader.ReadToEnd();
+                }
+            }
+
+            int start = 1 + readme.IndexOf('\n', 9 + readme.IndexOf("# Options", StringComparison.Ordinal));
+            readme = readme.Substring(start).Replace("`", "", StringComparison.Ordinal);
+            readme = Regex.Replace(readme, @"\[([^\]]*)\]\([^\)]*\)", "$1").Trim();
+
+            Console.WriteLine();
+            Console.WriteLine("Options:");
+            int width = Math.Max(Console.WindowWidth, 80) - 6;
+            foreach (string para in Regex.Split(readme, @"\s*\n(?:\s*\n)+\s*", RegexOptions.ECMAScript))
+            {
+                if (para.AsSpan().TrimStart().StartsWith('-'))
+                {
+                    // Option line, eg: "- `-h`, `--help`"
+                    Console.WriteLine();
+                    Console.Write("  ");
+                    Console.Out.WriteLine(para.AsSpan(1 + para.IndexOf('-')).Trim());
+                }
+                else if (!para.Contains('\n'))
+                {
+                    // Single-line option description
+                    Console.WriteLine();
+                    Console.Write("    ");
+                    Console.Out.WriteLine(para.AsSpan().Trim());
+                }
+                else
+                {
+                    // Multi-line option description
+                    int pos = width;
+                    foreach (var word in new SpanSplitter(para))
+                    {
+                        if (pos + 1 + word.Length > width)
+                        {
+                            Console.WriteLine();
+                            Console.Write("    ");
+                            Console.Out.Write(word);
+                            pos = word.Length;
+                        }
+                        else
+                        {
+                            Console.Write(' ');
+                            Console.Out.Write(word);
+                            pos += 1 + word.Length;
+                        }
+                    }
+                    Console.WriteLine();
+                }
+            }
         }
 
         private static bool emptyBlockOpen = false;
@@ -558,5 +634,11 @@ namespace ApiDump
                 throw new Exception($"Unexpected member kind {member.Kind}: {member}");
             }
         }
+    }
+
+    static class Extensions
+    {
+        public static bool StartsWith(this ReadOnlySpan<char> span, char value)
+            => !span.IsEmpty && span[0] == value;
     }
 }
