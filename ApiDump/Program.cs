@@ -43,9 +43,11 @@ namespace ApiDump
                     case "--all-interfaces":
                         showAllInterfaces = true;
                         break;
+                    case "-h":
                     case "--help":
                         PrintHelp();
                         return 0;
+                    case "-v":
                     case "--version":
                         if (args.Contains("--help")) goto case "--help";
                         PrintVersion();
