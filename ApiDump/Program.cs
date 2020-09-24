@@ -16,7 +16,6 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace ApiDump
 {
     /* TODO: The following need to be handled correctly:
-     *  - Hide fixed buffers compiler auto-generated types.
      *  - Type names should be qualified where ambiguous or nested and not in scope.
      *  - Some attributes should be displayed (be selective).
      *    + Include attributes that compile into IL metadata, such as StructLayout.
@@ -37,6 +36,7 @@ namespace ApiDump
     static class Program
     {
         private static bool showAllInterfaces = false;
+        private static bool showUnsafeValueTypes = false;
 
         static int Main(string[] args)
         {
@@ -53,6 +53,9 @@ namespace ApiDump
                         break;
                     case "--all-interfaces":
                         showAllInterfaces = true;
+                        break;
+                    case "--show-array-structs":
+                        showUnsafeValueTypes = true;
                         break;
                     case "-h":
                     case "--help":
@@ -334,6 +337,7 @@ namespace ApiDump
                 sb.Append("class ").Append(type.Name);
                 break;
             case TypeKind.Struct:
+                if (!showUnsafeValueTypes && type.IsUnsafeValueType()) return;
                 if (type.IsReadOnly) sb.Append("readonly ");
                 if (type.IsRefLikeType) sb.Append("ref ");
                 sb.Append("struct ").Append(type.Name);
@@ -662,6 +666,23 @@ namespace ApiDump
             default:
                 throw new Exception($"Unexpected member kind {member.Kind}: {member}");
             }
+        }
+
+        // TODO: Generalise this attribute handling code.
+
+        public static bool IsUnsafeValueType(this INamedTypeSymbol structType)
+        {
+            foreach (var attr in structType.GetAttributes())
+            {
+                var type = attr.AttributeClass;
+                if (!(type is null) && type.Name == "UnsafeValueTypeAttribute"
+                    && FullName(type.ContainingNamespace) == "System.Runtime.CompilerServices"
+                    && type.Arity == 0 && type.ContainingType is null)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public static bool TryGetFixedBufferSize(this IFieldSymbol field, out int size)

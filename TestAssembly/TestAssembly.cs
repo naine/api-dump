@@ -52,7 +52,7 @@ namespace TestAssembly
 
     public unsafe struct NormalStruct
     {
-        public fixed byte Stinx[16];
+        public fixed int Stinx[16];
 
         public static void Foo1() { }
         public void Foo2() { }
