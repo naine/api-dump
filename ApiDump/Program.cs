@@ -101,10 +101,11 @@ namespace ApiDump
                 }
                 var comp = CSharpCompilation.Create("dummy", null, refs,
                     new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-                var errors = comp.GetDiagnostics();
-                if (!errors.IsDefaultOrEmpty)
+                var diagnostics = comp.GetDiagnostics();
+                if (!diagnostics.IsDefaultOrEmpty)
                 {
-                    throw new Exception($"Compilation has errors:\n{string.Join('\n', errors)}");
+                    Console.Error.WriteLine("Warning: Compilation has diagnostics:");
+                    foreach (var diagnostic in diagnostics) Console.Error.WriteLine(diagnostic);
                 }
                 var globalNamespaces = comp.GlobalNamespace.ConstituentNamespaces;
                 if (globalNamespaces.Length != refs.Count + 1)
