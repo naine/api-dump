@@ -83,7 +83,30 @@ namespace ApiDump
                 var refs = new List<MetadataReference>();
                 foreach (string path in dlls)
                 {
-                    refs.Add(MetadataReference.CreateFromFile(path));
+                    try
+                    {
+                        refs.Add(MetadataReference.CreateFromFile(path));
+                    }
+                    catch (ArgumentException)
+                    {
+                        Console.Error.WriteLine("Error: Invalid file path: '{0}'", path);
+                        return 1;
+                    }
+                    catch (FileNotFoundException)
+                    {
+                        Console.Error.WriteLine("Error: File not found: '{0}'", path);
+                        return 1;
+                    }
+                    catch (IOException e)
+                    {
+                        Console.Error.WriteLine("Error: Failed to open '{0}': {1}", path, e.Message);
+                        return 1;
+                    }
+                    catch (BadImageFormatException)
+                    {
+                        Console.Error.WriteLine("Error: File is not a valid IL assembly: '{0}'", path);
+                        return 1;
+                    }
                 }
                 if (useInternalBCL)
                 {
