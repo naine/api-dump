@@ -16,7 +16,6 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace ApiDump
 {
     /* TODO: The following need to be handled correctly:
-     *  - Show fixed buffers with their sizes.
      *  - Hide fixed buffers compiler auto-generated types.
      *  - Type names should be qualified where ambiguous or nested and not in scope.
      *  - Some attributes should be displayed (be selective).
@@ -142,6 +141,9 @@ namespace ApiDump
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
             if (!(copyright is null)) Console.WriteLine(copyright.Copyright);
         }
+
+        public static bool StartsWith(this ReadOnlySpan<char> span, char value)
+            => !span.IsEmpty && span[0] == value;
 
         private static void PrintHelp()
         {
@@ -277,10 +279,11 @@ namespace ApiDump
             }
         }
 
-        private static string FullName(INamespaceSymbol ns)
+        private static string? FullName(INamespaceSymbol? ns)
         {
-            var parent = ns.ContainingNamespace;
-            return parent.IsGlobalNamespace ? ns.Name : $"{FullName(parent)}.{ns.Name}";
+            if (ns is null || ns.IsGlobalNamespace) return null;
+            string? parent = FullName(ns.ContainingNamespace);
+            return parent is null ? ns.Name : $"{parent}.{ns.Name}";
         }
 
         private static void PrintType(INamedTypeSymbol type, int indent)
@@ -498,7 +501,9 @@ namespace ApiDump
                 sb.Append(' ').Append(field.Name);
                 if (isFixed)
                 {
-                    sb.Append("[]");
+                    sb.Append('[');
+                    if (field.TryGetFixedBufferSize(out int size)) sb.Append(size);
+                    sb.Append(']');
                 }
                 else if (field.HasConstantValue)
                 {
@@ -634,11 +639,26 @@ namespace ApiDump
                 throw new Exception($"Unexpected member kind {member.Kind}: {member}");
             }
         }
-    }
 
-    static class Extensions
-    {
-        public static bool StartsWith(this ReadOnlySpan<char> span, char value)
-            => !span.IsEmpty && span[0] == value;
+        public static bool TryGetFixedBufferSize(this IFieldSymbol field, out int size)
+        {
+            foreach (var attr in field.GetAttributes())
+            {
+                var type = attr.AttributeClass;
+                if (type is null || type.Name != "FixedBufferAttribute"
+                    || FullName(type.ContainingNamespace) != "System.Runtime.CompilerServices"
+                    || type.Arity != 0 || !(type.ContainingType is null)) continue;
+                var args = attr.ConstructorArguments;
+                if (args.IsDefault || args.Length != 2 || args[0].Kind != TypedConstantKind.Type) continue;
+                var sizeArg = args[1];
+                if (sizeArg.Kind == TypedConstantKind.Primitive && sizeArg.Value is int value)
+                {
+                    size = value;
+                    return true;
+                }
+            }
+            size = 0; // TODO: Use Unsafe.SkipInit in .NET 5.
+            return false;
+        }
     }
 }
