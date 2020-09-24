@@ -108,10 +108,15 @@ namespace ApiDump
 
         public static StringBuilder AppendReturnSignature(this StringBuilder sb, IMethodSymbol method)
         {
-            if (method.ReturnsVoid) return sb.Append("void");
-            else if (method.ReturnsByRefReadonly) sb.Append("ref readonly ");
-            else if (method.ReturnsByRef) sb.Append("ref ");
-            return sb.AppendType(method.ReturnType);
+            return method.ReturnsVoid
+                ? sb.Append("void")
+                : sb.Append(method.RefKind switch
+            {
+                RefKind.Ref => "ref ",
+                RefKind.RefReadOnly => "ref readonly ",
+                RefKind.None => "",
+                _ => throw new Exception($"Invalid ref kind for return: {method.RefKind}"),
+            }).AppendType(method.ReturnType);
         }
 
         public static StringBuilder AppendParameters(this StringBuilder sb,
@@ -130,7 +135,7 @@ namespace ApiDump
                     RefKind.Out => "out ",
                     RefKind.In => "in ",
                     RefKind.None => "",
-                    _ => throw new Exception($"Invalid ref kind: {p.RefKind}"),
+                    _ => throw new Exception($"Invalid ref kind for parameter: {p.RefKind}"),
                 }).AppendType(p.Type).Append(' ').Append(p.Name);
             }
             return withParentheses ? sb.Append(')') : sb;
