@@ -69,7 +69,7 @@ namespace ApiDump
                 if (namedType.IsTupleType)
                 {
                     sb.Append('(');
-                    for (int i = 0; i < namedType.TupleElements.Length; i++)
+                    for (int i = 0; i < namedType.TupleElements.Length; ++i)
                     {
                         if (i != 0) sb.Append(", ");
                         var element = namedType.TupleElements[i];
@@ -84,7 +84,7 @@ namespace ApiDump
                 sb.Append(namedType.Name);
                 if (namedType.TypeArguments.IsDefaultOrEmpty) return sb;
                 sb.Append('<');
-                for (int i = 0; i < namedType.TypeArguments.Length; i++)
+                for (int i = 0; i < namedType.TypeArguments.Length; ++i)
                 {
                     if (i != 0) sb.Append(", ");
                     sb.AppendType(namedType.TypeArguments[i]);
@@ -123,7 +123,7 @@ namespace ApiDump
             ImmutableArray<IParameterSymbol> parameters, bool withParentheses = true)
         {
             if (withParentheses) sb.Append("(");
-            for (int i = 0; i < parameters.Length; i++)
+            for (int i = 0; i < parameters.Length; ++i)
             {
                 if (i != 0) sb.Append(", ");
                 var p = parameters[i];
@@ -149,7 +149,7 @@ namespace ApiDump
             if (tParams.Length != 0)
             {
                 sb.Append('<');
-                for (int i = 0; i < tParams.Length; i++)
+                for (int i = 0; i < tParams.Length; ++i)
                 {
                     if (i != 0) sb.Append(", ");
                     var param = tParams[i];
@@ -204,7 +204,7 @@ namespace ApiDump
                 foreach ((string param, var constraint) in constraints)
                 {
                     sb.Append(" where ").Append(param).Append(" : ");
-                    for (int i = 0; i < constraint.Count; i++)
+                    for (int i = 0; i < constraint.Count; ++i)
                     {
                         if (i != 0) sb.Append(", ");
                         sb.Append(constraint[i]);

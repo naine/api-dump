@@ -392,7 +392,7 @@ namespace ApiDump
             {
                 bases.Add(type.EnumUnderlyingType);
             }
-            for (int i = 0; i < bases.Count; i++)
+            for (int i = 0; i < bases.Count; ++i)
             {
                 sb.Append(i == 0 ? " : " : ", ").AppendType(bases[i]);
             }
