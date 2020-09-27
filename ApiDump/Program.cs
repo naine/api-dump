@@ -413,14 +413,13 @@ namespace ApiDump
                 }
                 else if (member is IFieldSymbol field)
                 {
-                    PrintLine($"{field.Name} = {field.ConstantValue},", indent + 1);
+                    PrintLine(new StringBuilder().Append(field.Name).Append(" = ")
+                        .AppendConstant(field.ConstantValue, type.EnumUnderlyingType!)
+                        .Append(',').ToString(), indent + 1);
                 }
             }
             PrintEndBlock(indent);
         }
-
-        private static readonly char[] escapes
-            = { '0', '\0', '\0', '\0', '\0', '\0', '\0', 'a', 'b', 't', 'n', 'v', 'f', 'r' };
 
         private static readonly Dictionary<string, string> conversionNames
             = new Dictionary<string, string>
@@ -549,25 +548,7 @@ namespace ApiDump
                 }
                 else if (field.HasConstantValue)
                 {
-                    sb.Append(" = ");
-                    if (field.ConstantValue is string s)
-                    {
-                        sb.Append('"');
-                        foreach (int c in s)
-                        {
-                            if (c < escapes.Length && escapes[c] != 0) sb.Append('\\').Append(escapes[c]);
-                            else if (c < 32 || c == 127) sb.Append($"\\x{c:x2}");
-                            else if (c == '\\') sb.Append("\\\\");
-                            else if (c == '"') sb.Append("\\\"");
-                            else if (c < 127) sb.Append((char)c);
-                            else sb.Append($"\\u{c:x4}");
-                        }
-                        sb.Append('"');
-                    }
-                    else
-                    {
-                        sb.Append(field.ConstantValue ?? "null");
-                    }
+                    sb.Append(" = ").AppendConstant(field.ConstantValue, field.Type);
                 }
                 PrintLine(sb.Append(';').ToString(), indent);
                 break;
@@ -692,6 +673,21 @@ namespace ApiDump
                 var type = attr.AttributeClass;
                 if (!(type is null) && type.Name == "UnsafeValueTypeAttribute"
                     && FullName(type.ContainingNamespace) == "System.Runtime.CompilerServices"
+                    && type.Arity == 0 && type.ContainingType is null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static bool IsFlagsEnum(this INamedTypeSymbol enumType)
+        {
+            foreach (var attr in enumType.GetAttributes())
+            {
+                var type = attr.AttributeClass;
+                if (!(type is null) && type.Name == "FlagsAttribute"
+                    && FullName(type.ContainingNamespace) == "System"
                     && type.Arity == 0 && type.ContainingType is null)
                 {
                     return true;

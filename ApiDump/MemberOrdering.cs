@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENCE file in the project root
 // for full license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
@@ -28,12 +29,15 @@ namespace ApiDump
                 {
                     int xv when yf.ConstantValue is int yv => xv.CompareTo(yv),
                     byte xv when yf.ConstantValue is byte yv => xv.CompareTo(yv),
-                    ushort xv when yf.ConstantValue is ushort yv => xv.CompareTo(yv),
-                    short xv when yf.ConstantValue is short yv => xv.CompareTo(yv),
-                    sbyte xv when yf.ConstantValue is sbyte yv => xv.CompareTo(yv),
                     uint xv when yf.ConstantValue is uint yv => xv.CompareTo(yv),
+                    sbyte xv when yf.ConstantValue is sbyte yv => xv.CompareTo(yv),
+                    short xv when yf.ConstantValue is short yv => xv.CompareTo(yv),
+                    ushort xv when yf.ConstantValue is ushort yv => xv.CompareTo(yv),
                     long xv when yf.ConstantValue is long yv => xv.CompareTo(yv),
                     ulong xv when yf.ConstantValue is ulong yv => xv.CompareTo(yv),
+                    // TODO: This can be simplified under .NET 5
+                    IntPtr xv when yf.ConstantValue is IntPtr yv => xv.ToInt64().CompareTo(yv.ToInt64()),
+                    UIntPtr xv when yf.ConstantValue is UIntPtr yv => xv.ToUInt64().CompareTo(yv.ToUInt64()),
                     _ => 0,
                 }) != 0 ? c : x.Name.CompareTo(y.Name);
             }

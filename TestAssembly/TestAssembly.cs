@@ -114,10 +114,40 @@ namespace TestAssembly
         public void Method2() { }
     }
 
-    public enum Enum1 { A, B, C }
-    public enum Enum2 : byte { A, B, C }
-    public enum Enum3 : ulong { A, B, C }
-    public enum Enum4 : int { A, B, C }
+    public enum Enum1 { A = 1, B = 2, C = 4, D = B | C }
+    public enum Enum2 : int { A = 0, B = 1, C = 2, D = B | C }
+    [Flags] public enum Enum3 { A = 1, B = 2, C = 4, D = B | C }
+    [Flags] public enum Enum4 : int { A = 0, B = 1, C = 2, D = B | C }
+    public enum Enum5 : ulong { A, B, C, D }
+    public enum Enum6 : byte { A, B, C, D }
+
+    public static class EnumConsts
+    {
+        public const Enum1 ConstC1 = Enum1.C;
+        public const Enum2 ConstC2 = Enum2.C;
+        public const Enum3 ConstC3 = Enum3.C;
+        public const Enum4 ConstC4 = Enum4.C;
+        public const Enum1 ConstDef1 = 0;
+        public const Enum2 ConstDef2 = 0;
+        public const Enum3 ConstDef3 = 0;
+        public const Enum4 ConstDef4 = 0;
+        public const Enum1 ConstMix1 = Enum1.B | Enum1.C;
+        public const Enum2 ConstMix2 = Enum2.B | Enum2.C;
+        public const Enum3 ConstMix3 = Enum3.B | Enum3.C;
+        public const Enum4 ConstMix4 = Enum4.B | Enum4.C;
+        public static void DefaultC(Enum1 x = Enum1.C) { }
+        public static void DefaultC(Enum2 x = Enum2.C) { }
+        public static void DefaultC(Enum3 x = Enum3.C) { }
+        public static void DefaultC(Enum4 x = Enum4.C) { }
+        public static void DefaultMix(Enum1 x = Enum1.D) { }
+        public static void DefaultMix(Enum2 x = Enum2.D) { }
+        public static void DefaultMix(Enum3 x = Enum3.D) { }
+        public static void DefaultMix(Enum4 x = Enum4.D) { }
+        public static void DefaultZero(Enum1 x = 0) { }
+        public static void DefaultZero(Enum2 x = 0) { }
+        public static void DefaultZero(Enum3 x = 0) { }
+        public static void DefaultZero(Enum4 x = 0) { }
+    }
 
     public delegate void VoidDelegate();
     public delegate int ValDelegate(int x);
