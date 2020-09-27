@@ -94,7 +94,11 @@ namespace ApiDump
                 return sb.AppendType(pointerType.PointedAtType).Append('*');
             case IArrayTypeSymbol arrayType:
                 sb.AppendType(arrayType.ElementType).Append('[');
-                for (int i = 1; i < arrayType.Rank; ++i) sb.Append(',');
+                if (!arrayType.IsSZArray)
+                {
+                    if (arrayType.Rank < 2) sb.Append('*');
+                    else for (int i = 1; i < arrayType.Rank; ++i) sb.Append(',');
+                }
                 return sb.Append(']');
             }
             return sb.Append(type.TypeKind switch
