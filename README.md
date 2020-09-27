@@ -45,6 +45,10 @@ $ apidump [options] <dllpaths>...
 
   Do not omit interfaces that are implied through inheritance.
 
+- `--no-nullable`
+
+  Do not show C# 8 nullable reference type annotations.
+
 - `--no-bcl`
 
   Do not refer to internal BCL assemblies to resolve references to core types.

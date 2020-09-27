@@ -73,7 +73,7 @@ namespace ApiDump
                     {
                         if (i != 0) sb.Append(", ");
                         var element = namedType.TupleElements[i];
-                        sb.AppendType(element.Type);
+                        sb.AppendType(element.Type, element.NullableAnnotation);
                         if (!SymbolEqualityComparer.Default.Equals(element, element.CorrespondingTupleField))
                         {
                             sb.Append(' ').Append(element.Name);
@@ -82,18 +82,26 @@ namespace ApiDump
                     return sb.Append(')');
                 }
                 sb.Append(namedType.Name);
-                if (namedType.TypeArguments.IsDefaultOrEmpty) return sb;
+                var typeArguments = namedType.TypeArguments;
+                if (typeArguments.IsDefaultOrEmpty) return sb;
+                var nullabilities = namedType.TypeArgumentNullableAnnotations;
+                if (nullabilities.Length != typeArguments.Length)
+                {
+                    throw new Exception(
+                        $"TypeArgumentNullableAnnotations.Length ({nullabilities.Length})"
+                        + $" != TypeArguments.Length ({typeArguments.Length})");
+                }
                 sb.Append('<');
-                for (int i = 0; i < namedType.TypeArguments.Length; ++i)
+                for (int i = 0; i < typeArguments.Length; ++i)
                 {
                     if (i != 0) sb.Append(", ");
-                    sb.AppendType(namedType.TypeArguments[i]);
+                    sb.AppendType(typeArguments[i], nullabilities[i]);
                 }
                 return sb.Append('>');
             case IPointerTypeSymbol pointerType:
                 return sb.AppendType(pointerType.PointedAtType).Append('*');
             case IArrayTypeSymbol arrayType:
-                sb.AppendType(arrayType.ElementType).Append('[');
+                sb.AppendType(arrayType.ElementType, arrayType.ElementNullableAnnotation).Append('[');
                 if (!arrayType.IsSZArray)
                 {
                     if (arrayType.Rank < 2) sb.Append('*');
@@ -110,6 +118,18 @@ namespace ApiDump
             });
         }
 
+        public static StringBuilder AppendType(this StringBuilder sb,
+            ITypeSymbol type, NullableAnnotation nullability)
+        {
+            sb.AppendType(type);
+            if (nullability == NullableAnnotation.Annotated
+                && Program.ShowNullable && !type.IsValueType)
+            {
+                sb.Append('?');
+            }
+            return sb;
+        }
+
         public static StringBuilder AppendReturnSignature(this StringBuilder sb, IMethodSymbol method)
         {
             return method.ReturnsVoid
@@ -120,12 +140,13 @@ namespace ApiDump
                 RefKind.RefReadOnly => "ref readonly ",
                 RefKind.None => "",
                 _ => throw new Exception($"Invalid ref kind for return: {method.RefKind}"),
-            }).AppendType(method.ReturnType);
+            }).AppendType(method.ReturnType, method.ReturnNullableAnnotation);
         }
 
         public static StringBuilder AppendParameters(this StringBuilder sb,
             ImmutableArray<IParameterSymbol> parameters, bool withParentheses = true)
         {
+            // TODO: Display optional parameter defaults.
             if (withParentheses) sb.Append("(");
             for (int i = 0; i < parameters.Length; ++i)
             {
@@ -140,7 +161,7 @@ namespace ApiDump
                     RefKind.In => "in ",
                     RefKind.None => "",
                     _ => throw new Exception($"Invalid ref kind for parameter: {p.RefKind}"),
-                }).AppendType(p.Type).Append(' ').Append(p.Name);
+                }).AppendType(p.Type, p.NullableAnnotation).Append(' ').Append(p.Name);
             }
             return withParentheses ? sb.Append(')') : sb;
         }
@@ -175,15 +196,29 @@ namespace ApiDump
                     }
                     else if (param.HasReferenceTypeConstraint)
                     {
-                        constraint.Add("class");
+                        constraint.Add(Program.ShowNullable
+                            && param.ReferenceTypeConstraintNullableAnnotation == NullableAnnotation.Annotated
+                            ? "class?" : "class");
                     }
-                    else if (param.HasNotNullConstraint)
+                    else if (Program.ShowNullable && param.HasNotNullConstraint)
                     {
                         constraint.Add("notnull");
                     }
-                    foreach (var type in param.ConstraintTypes)
+                    var constraintTypes = param.ConstraintTypes;
+                    if (!constraintTypes.IsDefaultOrEmpty)
                     {
-                        constraint.Add(new StringBuilder().AppendType(type).ToString());
+                        var nullabilities = param.ConstraintNullableAnnotations;
+                        if (nullabilities.Length != constraintTypes.Length)
+                        {
+                            throw new Exception(
+                                $"ConstraintNullableAnnotations.Length ({nullabilities.Length})"
+                                + $" != ConstraintTypes.Length ({constraintTypes.Length})");
+                        }
+                        for (int j = 0; j < constraintTypes.Length; ++j)
+                        {
+                            constraint.Add(new StringBuilder()
+                                .AppendType(constraintTypes[j], nullabilities[j]).ToString());
+                        }
                     }
                     if (param.HasConstructorConstraint)
                     {

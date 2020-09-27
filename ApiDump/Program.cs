@@ -17,12 +17,15 @@ namespace ApiDump
 {
     /* TODO: The following need to be handled correctly:
      *  - Type names should be qualified where ambiguous or nested and not in scope.
-     *  - Some attributes should be displayed (be selective).
-     *    + Include attributes that compile into IL metadata, such as StructLayout.
-     *    + Include attributes that visibly affect consumers, like Obsolete, AllowNull, etc.
+     *  - Some attributes should be displayed.
+     *    + Use command line options to explicitly show or hide specific attributes.
+     *    + Need to support attributes that compile into IL metadata, such as StructLayout.
+     *    + There should be a default list of known attributes that are shown/hidden.
+     *      ~ Includes attributes that visibly affect consumers, like Obsolete, etc.
+     *      ~ Excludes attributes that should be implementation details.
+     *      ~ Includes nullability attributes like AllowNull only if not --no-nullable.
+     *      ~ Allow specifying default for unknown attributes.
      *  - C# 8 features:
-     *    + Nullable reference types (optional via arg switch).
-     *    + Nullable reference type generic parameter constraints.
      *    + Default interface implementations.
      *    + Readonly instance members.
      *  - C# 9 features:
@@ -37,6 +40,7 @@ namespace ApiDump
     {
         private static bool showAllInterfaces = false;
         private static bool showUnsafeValueTypes = false;
+        internal static bool ShowNullable { get; private set; } = true;
 
         static int Main(string[] args)
         {
@@ -56,6 +60,9 @@ namespace ApiDump
                         break;
                     case "--show-array-structs":
                         showUnsafeValueTypes = true;
+                        break;
+                    case "--no-nullable":
+                        ShowNullable = false;
                         break;
                     case "-h":
                     case "--help":
@@ -525,7 +532,14 @@ namespace ApiDump
                     if (field.IsReadOnly) sb.Append("readonly ");
                     else if (field.IsVolatile) sb.Append("volatile ");
                 }
-                sb.AppendType(isFixed ? ((IPointerTypeSymbol)field.Type).PointedAtType : field.Type);
+                if (isFixed)
+                {
+                    sb.AppendType(((IPointerTypeSymbol)field.Type).PointedAtType);
+                }
+                else
+                {
+                    sb.AppendType(field.Type, field.NullableAnnotation);
+                }
                 sb.Append(' ').Append(field.Name);
                 if (isFixed)
                 {
@@ -572,8 +586,8 @@ namespace ApiDump
                     if (eventSymbol.IsAbstract) sb.Append("abstract ");
                     else if (eventSymbol.IsVirtual) sb.Append("virtual ");
                 }
-                PrintLine(sb.Append("event ").AppendType(eventSymbol.Type).Append(' ')
-                    .Append(eventSymbol.Name).Append(';').ToString(), indent);
+                PrintLine(sb.Append("event ").AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation)
+                    .Append(' ').Append(eventSymbol.Name).Append(';').ToString(), indent);
                 break;
             case IMethodSymbol method:
                 switch (method.MethodKind)
@@ -602,7 +616,8 @@ namespace ApiDump
                     if (method.MethodKind == MethodKind.Conversion
                         && conversionNames.TryGetValue(method.Name, out var keyword))
                     {
-                        sb.Append(keyword).Append(" operator ").AppendType(method.ReturnType);
+                        sb.Append(keyword).Append(" operator ")
+                            .AppendType(method.ReturnType, method.ReturnNullableAnnotation);
                     }
                     else
                     {
@@ -643,7 +658,7 @@ namespace ApiDump
                 }
                 if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
                 else if (property.ReturnsByRef) sb.Append("ref ");
-                sb.AppendType(property.Type).Append(' ');
+                sb.AppendType(property.Type, property.NullableAnnotation).Append(' ');
                 if (property.IsIndexer)
                 {
                     sb.Append("this[").AppendParameters(property.Parameters, false).Append(']');
