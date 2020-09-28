@@ -5,6 +5,8 @@ using System.Runtime.CompilerServices;
 
 [assembly: ReferenceAssembly]
 
+// TODO: See what .NET 5 stuff should be added.
+
 namespace System
 {
     public abstract class Array : IList
@@ -123,7 +125,9 @@ namespace System
     }
     public class Object
     {
+#pragma warning disable CA1821 // Empty finalizer
         ~Object() { }
+#pragma warning restore CA1821 // Empty finalizer
         public virtual bool Equals(object? obj) => throw null;
         public virtual int GetHashCode() => throw null;
         public Type GetType() => throw null;
@@ -459,7 +463,9 @@ namespace System.Runtime.CompilerServices
         public DecimalConstantAttribute(byte scale, byte sign, uint hi, uint mid, uint low) { }
         public decimal Value => throw null;
     }
+#pragma warning disable CA1018 // Missing AttributeUsageAttribute
     public class DiscardableAttribute : Attribute { }
+#pragma warning restore CA1018 // Missing AttributeUsageAttribute
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
     public sealed class EnumeratorCancellationAttribute : Attribute { }
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method)]

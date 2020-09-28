@@ -13,7 +13,7 @@ namespace TestAssembly
     public class TopClass : IDisposable, IEnumerable
     {
         public IEnumerator GetEnumerator() => throw new NotImplementedException();
-        void IDisposable.Dispose() { }
+        void IDisposable.Dispose() => GC.SuppressFinalize(this);
     }
 
     public abstract class AbstractClass : IEnumerable
@@ -23,7 +23,7 @@ namespace TestAssembly
         public abstract ref int Foo2(in decimal x);
         public virtual ref readonly object Foo3(ref string x) => throw new NotImplementedException();
         public virtual dynamic Foo4(out (int a, double b) x) => throw new NotImplementedException();
-        public void Foo5(dynamic x) { }
+        public void Foo5(dynamic x) => throw new NotImplementedException();
         public static void Foo6(GenContainer<int>.GenEnum x) { }
         public static void Foo7((int a, int, int c, int, int e, int, int g, int, int? i, int) x) { }
     }
@@ -55,8 +55,8 @@ namespace TestAssembly
         public fixed int Stinx[16];
 
         public static void Foo1() { }
-        public void Foo2() { }
-        public readonly void Foo3() { }
+        public void Foo2() => throw new NotImplementedException();
+        public readonly void Foo3() => throw new NotImplementedException();
         public readonly int Foo4() => throw new NotImplementedException();
         public readonly ref int Foo5() => throw new NotImplementedException();
         public ref readonly int Foo6() => throw new NotImplementedException();
@@ -110,8 +110,8 @@ namespace TestAssembly
         public event VoidDelegate? Event1;
         public event ValDelegate Event2 { add { } remove { } }
         public IEnumerator GetEnumerator() => throw new NotImplementedException();
-        public void Method() { }
-        public void Method2() { }
+        public void Method() => throw new NotImplementedException();
+        public void Method2() => throw new NotImplementedException();
     }
 
     public enum Enum1 { A = 1, B = 2, C = 4, D = B | C }
