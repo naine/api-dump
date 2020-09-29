@@ -67,7 +67,7 @@ namespace ApiDump
                 {
                     return sb.AppendType(namedType.TypeArguments[0]).Append('?');
                 }
-                if (namedType.IsTupleType)
+                if (namedType.IsTupleType && namedType.TupleElements.Length > 1)
                 {
                     sb.Append('(');
                     for (int i = 0; i < namedType.TupleElements.Length; ++i)
