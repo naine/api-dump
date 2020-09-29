@@ -614,7 +614,7 @@ namespace ApiDump
                         }
                     }
                     sb.AppendTypeParameters(method.TypeParameters, out var constraints);
-                    sb.AppendParameters(method.Parameters);
+                    sb.AppendParameters(method.Parameters, method.IsExtensionMethod);
                     sb.AppendTypeConstraints(constraints);
                     PrintLine(sb.Append(';').ToString(), indent);
                     break;
@@ -642,7 +642,7 @@ namespace ApiDump
                 sb.AppendType(property.Type, property.NullableAnnotation).Append(' ');
                 if (property.IsIndexer)
                 {
-                    sb.Append("this[").AppendParameters(property.Parameters, false).Append(']');
+                    sb.Append("this").AppendParameters(property.Parameters, false, '[', ']');
                 }
                 else
                 {

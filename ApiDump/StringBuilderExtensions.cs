@@ -145,15 +145,16 @@ namespace ApiDump
         }
 
         public static StringBuilder AppendParameters(this StringBuilder sb,
-            ImmutableArray<IParameterSymbol> parameters, bool withParentheses = true)
+            ImmutableArray<IParameterSymbol> parameters,
+            bool isExtension = false, char open = '(', char close = ')')
         {
-            if (withParentheses) sb.Append("(");
+            sb.Append(open);
             for (int i = 0; i < parameters.Length; ++i)
             {
                 if (i != 0) sb.Append(", ");
                 var p = parameters[i];
-                if (p.IsParams) sb.Append("params ");
-                else if (p.IsThis) sb.Append("this ");
+                if (isExtension && i == 0) sb.Append("this ");
+                else if (p.IsParams) sb.Append("params ");
                 sb.Append(p.RefKind switch
                 {
                     RefKind.Ref => "ref ",
@@ -167,9 +168,8 @@ namespace ApiDump
                     sb.Append(" = ").AppendConstant(p.ExplicitDefaultValue, p.Type);
                 }
             }
-            return withParentheses ? sb.Append(')') : sb;
+            return sb.Append(close);
         }
-
         private static StringBuilder AppendChar(this StringBuilder sb, int c)
         {
             const string escapes = "0\0\0\0\0\0\0abtnvfr";

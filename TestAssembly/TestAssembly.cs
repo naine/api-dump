@@ -149,6 +149,11 @@ namespace TestAssembly
         public static void DefaultZero(Enum4 x = 0) { }
     }
 
+    public static class Extensions
+    {
+        public static int IntExtension(this int foo) => throw new NotImplementedException();
+    }
+
     public delegate void VoidDelegate();
     public delegate int ValDelegate(int x);
     public delegate ref int RefDelegate(ref int x);
