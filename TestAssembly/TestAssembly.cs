@@ -5,6 +5,8 @@
 using System;
 using System.Collections;
 using System.IO;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
 
 namespace TestAssembly
 {
@@ -14,6 +16,91 @@ namespace TestAssembly
     {
         public IEnumerator GetEnumerator() => throw new NotImplementedException();
         void IDisposable.Dispose() { }
+
+        public static void StrNonNull(string x = "hello") => throw new NotImplementedException();
+        public static void StrNull(string? x = null) => throw new NotImplementedException();
+        public static void CharNonZero(char x = 'Q') => throw new NotImplementedException();
+        public static void CharExplicitZero(char x = '\0') => throw new NotImplementedException();
+        public static void CharDefault(char x = default) => throw new NotImplementedException();
+        public static void DoubleNonZero(double x = -3.14) => throw new NotImplementedException();
+        public static void DoubleExplicitZero(double x = 0.0) => throw new NotImplementedException();
+        public static void DoubleDefault(double x = default) => throw new NotImplementedException();
+        public static void DoubleNan(double x = double.NaN) => throw new NotImplementedException();
+        public static void DoublePosInf(double x = double.PositiveInfinity) => throw new NotImplementedException();
+        public static void DoubleNegInf(double x = double.NegativeInfinity) => throw new NotImplementedException();
+        public static void FloatNonZero(float x = -3.14f) => throw new NotImplementedException();
+        public static void FloatExplicitZero(float x = 0.0f) => throw new NotImplementedException();
+        public static void FloatDefault(float x = default) => throw new NotImplementedException();
+        public static void FloatNan(float x = float.NaN) => throw new NotImplementedException();
+        public static void FloatPosInf(float x = float.PositiveInfinity) => throw new NotImplementedException();
+        public static void FloatNegInf(float x = float.NegativeInfinity) => throw new NotImplementedException();
+        public static void IntNonZero(int x = 12345) => throw new NotImplementedException();
+        public static void IntExplicitZero(int x = 0) => throw new NotImplementedException();
+        public static void IntDefault(int x = default) => throw new NotImplementedException();
+        public static void BoolTrue(bool x = true) => throw new NotImplementedException();
+        public static void BoolFalse(bool x = false) => throw new NotImplementedException();
+        public static void BoolDefault(bool x = default) => throw new NotImplementedException();
+        public static void NullableNonZero(int? x = 12345) => throw new NotImplementedException();
+        public static void NullableZero(int? x = 0) => throw new NotImplementedException();
+        public static void NullableNull(int? x = null) => throw new NotImplementedException();
+        public static void NullableDefault(int? x = default) => throw new NotImplementedException();
+        public static void NullableUnknownNull(ArrayWithOffset? x = null)
+            => throw new NotImplementedException();
+        public static void NullableUnknownDefault(ArrayWithOffset? x = default)
+            => throw new NotImplementedException();
+        public static void NullableUnknownEnumNonZero(ZipArchiveMode? x = ZipArchiveMode.Update)
+            => throw new NotImplementedException();
+        public static void NullableUnknownEnumZero(ZipArchiveMode? x = 0)
+            => throw new NotImplementedException();
+        public static void NullableUnknownEnumNull(ZipArchiveMode? x = null)
+            => throw new NotImplementedException();
+        public static void NullableUnknownEnumDefault(ZipArchiveMode? x = default)
+            => throw new NotImplementedException();
+        public static void ClassKnown(IEnumerable? x = null) => throw new NotImplementedException();
+        public static void ClassUnknown(ZipArchive? x = null) => throw new NotImplementedException();
+        public static void StructKnown(ValueTuple x = default) => throw new NotImplementedException();
+        public static void StructUnknown(ArrayWithOffset x = default) => throw new NotImplementedException();
+        public static unsafe void PtrVoid(void* x = null) => throw new NotImplementedException();
+        public static unsafe void PtrKnown(int* x = null) => throw new NotImplementedException();
+        public static unsafe void PtrUnknown(ZipArchiveMode* x = null) => throw new NotImplementedException();
+        public static void EnumNonZero(LayoutKind x = LayoutKind.Explicit) => throw new NotImplementedException();
+        public static void EnumNamedZero(LayoutKind x = LayoutKind.Sequential)
+            => throw new NotImplementedException();
+        public static void EnumExplicitZero(LayoutKind x = 0) => throw new NotImplementedException();
+        public static void EnumDefault(LayoutKind x = default) => throw new NotImplementedException();
+        public static void EnumUnknownNonZero(ZipArchiveMode x = ZipArchiveMode.Update)
+            => throw new NotImplementedException();
+        public static void EnumUnknownNamedZero(ZipArchiveMode x = ZipArchiveMode.Read)
+            => throw new NotImplementedException();
+        public static void EnumUnknownExplicitZero(ZipArchiveMode x = 0) => throw new NotImplementedException();
+        public static void EnumUnknownDefault(ZipArchiveMode x = default) => throw new NotImplementedException();
+        public static void EnumFlagsSingle(AttributeTargets x = AttributeTargets.Assembly)
+            => throw new NotImplementedException();
+        public static void EnumFlagsMultiple(
+            AttributeTargets x = AttributeTargets.Class | AttributeTargets.Struct)
+            => throw new NotImplementedException();
+        public static void EnumFlagsArbitrary(AttributeTargets x = (AttributeTargets)0x8000)
+            => throw new NotImplementedException();
+        public static void EnumFlagsMixed(AttributeTargets x = AttributeTargets.Class | (AttributeTargets)0x8000)
+            => throw new NotImplementedException();
+        public static void EnumFlagsExplicitZero(AttributeTargets x = 0) => throw new NotImplementedException();
+        public static void EnumFlagsDefault(AttributeTargets x = default) => throw new NotImplementedException();
+        public static void EnumFlagsUnknownSingle(DllImportSearchPath x = DllImportSearchPath.AssemblyDirectory)
+            => throw new NotImplementedException();
+        public static void EnumFlagsUnknownMultiple(
+            DllImportSearchPath x = DllImportSearchPath.SafeDirectories | DllImportSearchPath.System32)
+            => throw new NotImplementedException();
+        public static void EnumFlagsUnknownArbitrary(DllImportSearchPath x = (DllImportSearchPath)16)
+            => throw new NotImplementedException();
+        public static void EnumFlagsUnknownMixed(
+            DllImportSearchPath x = DllImportSearchPath.SafeDirectories | (DllImportSearchPath)16)
+            => throw new NotImplementedException();
+        public static void EnumFlagsUnknownNamedZero(DllImportSearchPath x = DllImportSearchPath.LegacyBehavior)
+            => throw new NotImplementedException();
+        public static void EnumFlagsUnknownExplicitZero(DllImportSearchPath x = 0)
+            => throw new NotImplementedException();
+        public static void EnumFlagsUnknownDefault(DllImportSearchPath x = default)
+            => throw new NotImplementedException();
     }
 
     public abstract class AbstractClass : IEnumerable

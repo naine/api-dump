@@ -303,7 +303,10 @@ namespace ApiDump
             }
             else if (type.IsReferenceType || type.TypeKind == TypeKind.Pointer)
             {
-                return sb.Append("null");
+                // If a named type is not known to the compilation, Roslyn seems
+                // to assume that it's a class and returns true on IsReferenceType,
+                // but this may not be correct, so we use "default" for this case.
+                return sb.Append(type.TypeKind == TypeKind.Error ? "default" : "null");
             }
             else if (type.TypeKind == TypeKind.Enum)
             {
