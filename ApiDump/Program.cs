@@ -173,7 +173,7 @@ namespace ApiDump
 
             // TODO: Convert this pattern to use 'is not null' when C# 9 is out of preview.
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
-            if (!(copyright is null)) Console.WriteLine(copyright.Copyright);
+            if (!(copyright is null)) Console.WriteLine(copyright.Copyright.Replace("\u00A9", "(C)"));
         }
 
         public static bool StartsWith(this ReadOnlySpan<char> span, char value)
