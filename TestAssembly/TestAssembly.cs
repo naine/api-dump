@@ -148,6 +148,10 @@ namespace TestAssembly
         public readonly ref int Foo5() => throw new NotImplementedException();
         public ref readonly int Foo6() => throw new NotImplementedException();
         public readonly ref readonly int Foo7() => throw new NotImplementedException();
+
+        public readonly event Action Event1 { add { } remove { } }
+        public event Action Event2 { add { } remove { } }
+        public event Action Event3;
     }
 
     public ref struct RefStruct

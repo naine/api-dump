@@ -27,7 +27,6 @@ namespace ApiDump
      *      ~ Allow specifying default for unknown attributes.
      *  - C# 8 features:
      *    + Default interface implementations.
-     *    + Readonly instance members.
      *  - C# 9 features:
      *    + Native-sized integers.
      *    + Raw function pointers.
@@ -459,15 +458,16 @@ namespace ApiDump
 
         private static void PrintMember(ISymbol member, int indent, bool inInterface)
         {
+            var containingType = member.ContainingType;
             if (member.Kind == SymbolKind.Method)
             {
                 switch (((IMethodSymbol)member).MethodKind)
                 {
                 case MethodKind.Destructor:
-                    PrintLine($"~{member.ContainingType.Name}();", indent);
+                    PrintLine($"~{containingType.Name}();", indent);
                     return;
                 case MethodKind.Constructor:
-                    if (member.ContainingType.TypeKind == TypeKind.Struct
+                    if (containingType.TypeKind == TypeKind.Struct
                         && ((IMethodSymbol)member).Parameters.IsDefaultOrEmpty)
                     {
                         return;
@@ -510,6 +510,8 @@ namespace ApiDump
                             + $" visibility {member.DeclaredAccessibility}: {member}");
                 }
             }
+            bool inMutableStruct = containingType.TypeKind == TypeKind.Struct
+                && !containingType.IsReadOnly && !member.IsStatic;
             switch (member)
             {
             case INamedTypeSymbol nestedType:
@@ -567,8 +569,43 @@ namespace ApiDump
                     if (eventSymbol.IsAbstract) sb.Append("abstract ");
                     else if (eventSymbol.IsVirtual) sb.Append("virtual ");
                 }
-                PrintLine(sb.Append("event ").AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation)
-                    .Append(' ').Append(eventSymbol.Name).Append(';').ToString(), indent);
+                bool showAccessors = false;
+                IMethodSymbol? add = null, remove = null;
+                if (inMutableStruct)
+                {
+                    add = eventSymbol.AddMethod;
+                    remove = eventSymbol.RemoveMethod;
+                    switch ((add?.IsReadOnly, remove?.IsReadOnly))
+                    {
+                    case (true, true):
+                    case (true, null):
+                    case (null, true):
+                        sb.Append("readonly ");
+                        break;
+                    case (true, false):
+                    case (false, true):
+                        // Although not allowed in C#, it is technically possible in IL
+                        // to mark add/remove accessors individually as readonly.
+                        // Show this case using accessor syntax similar to properties.
+                        showAccessors = true;
+                        break;
+                    }
+                }
+                sb.Append("event ").AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation)
+                    .Append(' ').Append(eventSymbol.Name);
+                if (showAccessors)
+                {
+                    sb.Append(" { ");
+                    if (add!.IsReadOnly) sb.Append("readonly ");
+                    sb.Append("add; ");
+                    if (remove!.IsReadOnly) sb.Append("readonly ");
+                    sb.Append("remove; }");
+                }
+                else
+                {
+                    sb.Append(';');
+                }
+                PrintLine(sb.ToString(), indent);
                 break;
             case IMethodSymbol method:
                 switch (method.MethodKind)
@@ -594,6 +631,7 @@ namespace ApiDump
                         if (method.IsAbstract) sb.Append("abstract ");
                         else if (method.IsVirtual) sb.Append("virtual ");
                     }
+                    if (inMutableStruct && method.IsReadOnly) sb.Append("readonly ");
                     if (method.MethodKind == MethodKind.Conversion
                         && conversionNames.TryGetValue(method.Name, out var keyword))
                     {
@@ -651,11 +689,11 @@ namespace ApiDump
                 sb.Append(" { ");
                 if (!(property.GetMethod is null))
                 {
-                    sb.AppendAccessor("get", property.GetMethod, property);
+                    sb.AppendAccessor("get", property.GetMethod, property, inMutableStruct);
                 }
                 if (!(property.SetMethod is null))
                 {
-                    sb.AppendAccessor("set", property.SetMethod, property);
+                    sb.AppendAccessor("set", property.SetMethod, property, inMutableStruct);
                 }
                 PrintLine(sb.Append('}').ToString(), indent);
                 break;

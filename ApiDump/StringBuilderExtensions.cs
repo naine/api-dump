@@ -13,8 +13,8 @@ namespace ApiDump
 {
     static class StringBuilderExtensions
     {
-        public static StringBuilder AppendAccessor(this StringBuilder sb,
-            string name, IMethodSymbol accessor, IPropertySymbol property)
+        public static StringBuilder AppendAccessor(this StringBuilder sb, string name,
+            IMethodSymbol accessor, IPropertySymbol property, bool inMutableStruct)
         {
             switch (accessor.DeclaredAccessibility)
             {
@@ -30,6 +30,7 @@ namespace ApiDump
             case Accessibility.Internal:
                 return sb;
             }
+            if (inMutableStruct && accessor.IsReadOnly) sb.Append("readonly ");
             return sb.Append(name).Append("; ");
         }
 
