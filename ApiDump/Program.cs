@@ -459,21 +459,19 @@ namespace ApiDump
         private static void PrintMember(ISymbol member, int indent, bool inInterface)
         {
             var containingType = member.ContainingType;
-            if (member.Kind == SymbolKind.Method)
+            if (member is IMethodSymbol m)
             {
-                switch (((IMethodSymbol)member).MethodKind)
+                switch (m.MethodKind)
                 {
                 case MethodKind.Destructor:
                     PrintLine($"~{containingType.Name}();", indent);
                     return;
                 case MethodKind.Constructor:
-                    if (containingType.TypeKind == TypeKind.Struct
-                        && ((IMethodSymbol)member).Parameters.IsDefaultOrEmpty)
+                    if (containingType.TypeKind == TypeKind.Struct && m.Parameters.IsDefaultOrEmpty)
                     {
                         return;
                     }
                     break;
-                case MethodKind.ExplicitInterfaceImplementation:
                 case MethodKind.StaticConstructor:
                 case MethodKind.PropertyGet:
                 case MethodKind.PropertySet:
@@ -481,13 +479,32 @@ namespace ApiDump
                 case MethodKind.EventRemove:
                     return;
                 }
+                if (!m.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
+                {
+                    foreach (var impl in m.ExplicitInterfaceImplementations)
+                    {
+                        PrintExplicitImplementation(m, impl, indent, inInterface);
+                    }
+                    if (!m.CanBeReferencedByName) return;
+                }
             }
-            else if ((member is IEventSymbol eventSymbol
+            else if (member is IEventSymbol eventSymbol
                 && !eventSymbol.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
-                || (member is IPropertySymbol property
-                && !property.ExplicitInterfaceImplementations.IsDefaultOrEmpty))
             {
-                return;
+                foreach (var impl in eventSymbol.ExplicitInterfaceImplementations)
+                {
+                    PrintExplicitImplementation(eventSymbol, impl, indent, inInterface);
+                }
+                if (!eventSymbol.CanBeReferencedByName) return;
+            }
+            else if (member is IPropertySymbol property
+                && !property.ExplicitInterfaceImplementations.IsDefaultOrEmpty)
+            {
+                foreach (var impl in property.ExplicitInterfaceImplementations)
+                {
+                    PrintExplicitImplementation(property, impl, indent, inInterface);
+                }
+                if (!property.CanBeReferencedByName) return;
             }
             var sb = new StringBuilder();
             if (!inInterface)
@@ -700,6 +717,84 @@ namespace ApiDump
             default:
                 throw new Exception($"Unexpected member kind {member.Kind}: {member}");
             }
+        }
+
+        private static void PrintExplicitImplementation(IMethodSymbol method,
+            IMethodSymbol implemented, int indent, bool inInterface)
+        {
+            var sb = new StringBuilder();
+            if (method.IsOverride)
+            {
+                if (method.IsSealed) sb.Append("sealed ");
+                sb.Append("override ");
+            }
+            else if (!inInterface)
+            {
+                if (method.IsAbstract) sb.Append("abstract ");
+                else if (method.IsVirtual) sb.Append("virtual ");
+            }
+            PrintLine(sb.AppendReturnSignature(method).Append(' ')
+                .AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
+                .AppendTypeParameters(method.TypeParameters, out var constraints)
+                .AppendParameters(method.Parameters, method.IsExtensionMethod)
+                .AppendTypeConstraints(constraints).Append(';').ToString(), indent);
+        }
+
+        private static void PrintExplicitImplementation(IPropertySymbol property,
+            IPropertySymbol implemented, int indent, bool inInterface)
+        {
+            var sb = new StringBuilder();
+            if (property.IsOverride)
+            {
+                if (property.IsSealed) sb.Append("sealed ");
+                sb.Append("override ");
+            }
+            else if (!inInterface)
+            {
+                if (property.IsAbstract) sb.Append("abstract ");
+                else if (property.IsVirtual) sb.Append("virtual ");
+            }
+            if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
+            else if (property.ReturnsByRef) sb.Append("ref ");
+            sb.AppendType(property.Type, property.NullableAnnotation).Append(' ')
+                .AppendType(implemented.ContainingType).Append('.');
+            if (property.IsIndexer)
+            {
+                sb.Append("this").AppendParameters(property.Parameters, false, '[', ']');
+            }
+            else
+            {
+                sb.Append(implemented.Name);
+            }
+            sb.Append(" { ");
+            if (!(property.GetMethod is null))
+            {
+                sb.AppendAccessor("get", property.GetMethod, property, false);
+            }
+            if (!(property.SetMethod is null))
+            {
+                sb.AppendAccessor("set", property.SetMethod, property, false);
+            }
+            PrintLine(sb.Append('}').ToString(), indent);
+        }
+
+        private static void PrintExplicitImplementation(IEventSymbol eventSymbol,
+            IEventSymbol implemented, int indent, bool inInterface)
+        {
+            var sb = new StringBuilder();
+            if (eventSymbol.IsOverride)
+            {
+                if (eventSymbol.IsSealed) sb.Append("sealed ");
+                sb.Append("override ");
+            }
+            else if (!inInterface)
+            {
+                if (eventSymbol.IsAbstract) sb.Append("abstract ");
+                else if (eventSymbol.IsVirtual) sb.Append("virtual ");
+            }
+            PrintLine(sb.Append("event ").AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation)
+                .Append(' ').AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
+                .Append(';').ToString(), indent);
         }
 
         // TODO: Generalise this attribute handling code.

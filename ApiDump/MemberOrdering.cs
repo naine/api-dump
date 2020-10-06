@@ -43,6 +43,7 @@ namespace ApiDump
             }
             if ((c = KindOrdering(x).CompareTo(KindOrdering(y))) != 0) return c;
             if (x.Kind != SymbolKind.NamedType && (c = (!x.IsStatic).CompareTo(!y.IsStatic)) != 0) return c;
+            if ((c = (!x.CanBeReferencedByName).CompareTo(!y.CanBeReferencedByName)) != 0) return c;
             if ((c = ((int)y.DeclaredAccessibility).CompareTo((int)x.DeclaredAccessibility)) != 0) return c;
             if ((c = x.Name.CompareTo(y.Name)) != 0) return c;
             if ((c = GetArity(x).CompareTo(GetArity(y))) != 0) return c;
@@ -69,12 +70,13 @@ namespace ApiDump
                     MethodKind.Constructor => 2,
                     MethodKind.Destructor => 3,
                     MethodKind.Ordinary => 7,
-                    MethodKind.UserDefinedOperator => 8,
-                    MethodKind.Conversion => 9,
-                    _ => 10,
+                    MethodKind.ExplicitInterfaceImplementation => 8,
+                    MethodKind.UserDefinedOperator => 9,
+                    MethodKind.Conversion => 10,
+                    _ => 11,
                 },
-                INamedTypeSymbol _ => 11,
-                _ => 12,
+                INamedTypeSymbol _ => 12,
+                _ => 13,
             };
         }
 
