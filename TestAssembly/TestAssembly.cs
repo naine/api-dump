@@ -182,9 +182,17 @@ namespace TestAssembly
         void Method();
 
 #if INTERFACE_DEFAULTS
+        virtual void Method1() { }
         public void Method2() { }
-        public void Method3(int x) { }
+        public sealed void Method3(int x) { }
         protected void Method4(int x) { }
+    }
+
+    public interface ISubInterface : IFooInterface
+    {
+        void IFooInterface.Method() { }
+        abstract void IFooInterface.Method1();
+        void IFooInterface.Method2() { }
 #endif
     }
 

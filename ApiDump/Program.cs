@@ -25,8 +25,6 @@ namespace ApiDump
      *      ~ Excludes attributes that should be implementation details.
      *      ~ Includes nullability attributes like AllowNull only if not --no-nullable.
      *      ~ Allow specifying default for unknown attributes.
-     *  - C# 8 features:
-     *    + Default interface implementations.
      *  - C# 9 features:
      *    + Native-sized integers.
      *    + Raw function pointers.
@@ -408,7 +406,7 @@ namespace ApiDump
             {
                 if (type.TypeKind != TypeKind.Enum)
                 {
-                    PrintMember(member, indent + 1, type.TypeKind == TypeKind.Interface);
+                    PrintMember(member, indent + 1);
                 }
                 else if (member is IFieldSymbol field)
                 {
@@ -456,7 +454,7 @@ namespace ApiDump
                 [WellKnownMemberNames.UnaryPlusOperatorName] = "+",
             };
 
-        private static void PrintMember(ISymbol member, int indent, bool inInterface)
+        private static void PrintMember(ISymbol member, int indent)
         {
             var containingType = member.ContainingType;
             if (member is IMethodSymbol m)
@@ -483,7 +481,7 @@ namespace ApiDump
                 {
                     foreach (var impl in m.ExplicitInterfaceImplementations)
                     {
-                        PrintExplicitImplementation(m, impl, indent, inInterface);
+                        PrintExplicitImplementation(m, impl, indent);
                     }
                     if (!m.CanBeReferencedByName) return;
                 }
@@ -493,7 +491,7 @@ namespace ApiDump
             {
                 foreach (var impl in eventSymbol.ExplicitInterfaceImplementations)
                 {
-                    PrintExplicitImplementation(eventSymbol, impl, indent, inInterface);
+                    PrintExplicitImplementation(eventSymbol, impl, indent);
                 }
                 if (!eventSymbol.CanBeReferencedByName) return;
             }
@@ -502,30 +500,33 @@ namespace ApiDump
             {
                 foreach (var impl in property.ExplicitInterfaceImplementations)
                 {
-                    PrintExplicitImplementation(property, impl, indent, inInterface);
+                    PrintExplicitImplementation(property, impl, indent);
                 }
                 if (!property.CanBeReferencedByName) return;
             }
             var sb = new StringBuilder();
-            if (!inInterface)
+            bool inInterface = containingType.TypeKind == TypeKind.Interface;
+            switch (member.DeclaredAccessibility)
             {
-                switch (member.DeclaredAccessibility)
-                {
-                    case Accessibility.Public:
-                        sb.Append("public ");
-                        break;
-                    case Accessibility.Protected:
-                    case Accessibility.ProtectedOrInternal:
-                        sb.Append("protected ");
-                        break;
-                    case Accessibility.Private:
-                    case Accessibility.ProtectedAndInternal:
-                    case Accessibility.Internal:
-                        return;
-                    default:
-                        throw new Exception($"{member.Kind} member has unexpected"
-                            + $" visibility {member.DeclaredAccessibility}: {member}");
-                }
+            case Accessibility.Public:
+                // Try to use pre-8.0 C# syntax for interface members wherever possible.
+                // This means that for public abstract members, we hide these modifiers,
+                // as they are implied and previously could not be made explicit.
+                if (!inInterface || !member.IsAbstract) sb.Append("public ");
+                break;
+            case Accessibility.Protected:
+            case Accessibility.ProtectedOrInternal:
+                sb.Append("protected ");
+                break;
+            case Accessibility.Private:
+            case Accessibility.ProtectedAndInternal:
+            case Accessibility.Internal:
+                return;
+            case Accessibility.NotApplicable when inInterface:
+                break;
+            default:
+                throw new Exception($"{member.Kind} member has unexpected"
+                    + $" visibility {member.DeclaredAccessibility}: {member}");
             }
             bool inMutableStruct = containingType.TypeKind == TypeKind.Struct
                 && !containingType.IsReadOnly && !member.IsStatic;
@@ -572,20 +573,7 @@ namespace ApiDump
                 PrintLine(sb.Append(';').ToString(), indent);
                 break;
             case IEventSymbol eventSymbol:
-                if (eventSymbol.IsStatic)
-                {
-                    sb.Append("static ");
-                }
-                else if (eventSymbol.IsOverride)
-                {
-                    if (eventSymbol.IsSealed) sb.Append("sealed ");
-                    sb.Append("override ");
-                }
-                else if (!inInterface)
-                {
-                    if (eventSymbol.IsAbstract) sb.Append("abstract ");
-                    else if (eventSymbol.IsVirtual) sb.Append("virtual ");
-                }
+                sb.AppendCommonModifiers(eventSymbol, false);
                 bool showAccessors = false;
                 IMethodSymbol? add = null, remove = null;
                 if (inMutableStruct)
@@ -634,20 +622,7 @@ namespace ApiDump
                 case MethodKind.Ordinary:
                 case MethodKind.Conversion:
                 case MethodKind.UserDefinedOperator:
-                    if (method.IsStatic)
-                    {
-                        sb.Append("static ");
-                    }
-                    else if (method.IsOverride)
-                    {
-                        if (method.IsSealed) sb.Append("sealed ");
-                        sb.Append("override ");
-                    }
-                    else if (!inInterface)
-                    {
-                        if (method.IsAbstract) sb.Append("abstract ");
-                        else if (method.IsVirtual) sb.Append("virtual ");
-                    }
+                    sb.AppendCommonModifiers(method, false);
                     if (inMutableStruct && method.IsReadOnly) sb.Append("readonly ");
                     if (method.MethodKind == MethodKind.Conversion
                         && conversionNames.TryGetValue(method.Name, out var keyword))
@@ -678,20 +653,7 @@ namespace ApiDump
                 }
                 break;
             case IPropertySymbol property:
-                if (property.IsStatic)
-                {
-                    sb.Append("static ");
-                }
-                else if (property.IsOverride)
-                {
-                    if (property.IsSealed) sb.Append("sealed ");
-                    sb.Append("override ");
-                }
-                else if (!inInterface)
-                {
-                    if (property.IsAbstract) sb.Append("abstract ");
-                    else if (property.IsVirtual) sb.Append("virtual ");
-                }
+                sb.AppendCommonModifiers(property, false);
                 if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
                 else if (property.ReturnsByRef) sb.Append("ref ");
                 sb.AppendType(property.Type, property.NullableAnnotation).Append(' ');
@@ -719,41 +681,20 @@ namespace ApiDump
             }
         }
 
-        private static void PrintExplicitImplementation(IMethodSymbol method,
-            IMethodSymbol implemented, int indent, bool inInterface)
+        private static void PrintExplicitImplementation(
+            IMethodSymbol method, IMethodSymbol implemented, int indent)
         {
-            var sb = new StringBuilder();
-            if (method.IsOverride)
-            {
-                if (method.IsSealed) sb.Append("sealed ");
-                sb.Append("override ");
-            }
-            else if (!inInterface)
-            {
-                if (method.IsAbstract) sb.Append("abstract ");
-                else if (method.IsVirtual) sb.Append("virtual ");
-            }
-            PrintLine(sb.AppendReturnSignature(method).Append(' ')
-                .AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
+            PrintLine(new StringBuilder().AppendCommonModifiers(method, true).AppendReturnSignature(method)
+                .Append(' ').AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
                 .AppendTypeParameters(method.TypeParameters, out var constraints)
                 .AppendParameters(method.Parameters, method.IsExtensionMethod)
                 .AppendTypeConstraints(constraints).Append(';').ToString(), indent);
         }
 
-        private static void PrintExplicitImplementation(IPropertySymbol property,
-            IPropertySymbol implemented, int indent, bool inInterface)
+        private static void PrintExplicitImplementation(
+            IPropertySymbol property, IPropertySymbol implemented, int indent)
         {
-            var sb = new StringBuilder();
-            if (property.IsOverride)
-            {
-                if (property.IsSealed) sb.Append("sealed ");
-                sb.Append("override ");
-            }
-            else if (!inInterface)
-            {
-                if (property.IsAbstract) sb.Append("abstract ");
-                else if (property.IsVirtual) sb.Append("virtual ");
-            }
+            var sb = new StringBuilder().AppendCommonModifiers(property, true);
             if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
             else if (property.ReturnsByRef) sb.Append("ref ");
             sb.AppendType(property.Type, property.NullableAnnotation).Append(' ')
@@ -778,22 +719,12 @@ namespace ApiDump
             PrintLine(sb.Append('}').ToString(), indent);
         }
 
-        private static void PrintExplicitImplementation(IEventSymbol eventSymbol,
-            IEventSymbol implemented, int indent, bool inInterface)
+        private static void PrintExplicitImplementation(
+            IEventSymbol eventSymbol, IEventSymbol implemented, int indent)
         {
-            var sb = new StringBuilder();
-            if (eventSymbol.IsOverride)
-            {
-                if (eventSymbol.IsSealed) sb.Append("sealed ");
-                sb.Append("override ");
-            }
-            else if (!inInterface)
-            {
-                if (eventSymbol.IsAbstract) sb.Append("abstract ");
-                else if (eventSymbol.IsVirtual) sb.Append("virtual ");
-            }
-            PrintLine(sb.Append("event ").AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation)
-                .Append(' ').AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
+            PrintLine(new StringBuilder().AppendCommonModifiers(eventSymbol, true).Append("event ")
+                .AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation).Append(' ')
+                .AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
                 .Append(';').ToString(), indent);
         }
 

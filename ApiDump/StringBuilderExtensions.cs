@@ -421,5 +421,40 @@ namespace ApiDump
             }
             return sb;
         }
+
+        public static StringBuilder AppendCommonModifiers(this StringBuilder sb,
+            ISymbol member, bool explicitInterfaceImplementation)
+        {
+            if (member.IsStatic)
+            {
+                sb.Append("static ");
+            }
+            else if (member.IsOverride)
+            {
+                if (member.IsSealed) sb.Append("sealed ");
+                sb.Append("override ");
+            }
+            else if (member.ContainingType.TypeKind != TypeKind.Interface)
+            {
+                if (member.IsAbstract) sb.Append("abstract ");
+                else if (member.IsVirtual) sb.Append("virtual ");
+            }
+            else if (member.IsAbstract)
+            {
+                // Abstract by default. See comment in PrintMember about public accessbility.
+                if (member.DeclaredAccessibility != Accessibility.NotApplicable
+                    && member.DeclaredAccessibility != Accessibility.Public)
+                {
+                    sb.Append("abstract ");
+                }
+            }
+            else if (!explicitInterfaceImplementation)
+            {
+                // Non-abstract interface members are implicitly virtual unless declared sealed.
+                // Show either way to distinguish virtual from defaultly abstract members.
+                sb.Append(member.IsVirtual ? "virtual " : "sealed ");
+            }
+            return sb;
+        }
     }
 }
