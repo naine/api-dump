@@ -301,13 +301,16 @@ namespace ApiDump
                 return type.TypeKind == TypeKind.Enum
                     ? sb.AppendEnumValue(value, (INamedTypeSymbol)type) : sb.Append(value);
             }
-            else if (type.IsReferenceType || type.TypeKind == TypeKind.Pointer
-                || type.TypeKind == TypeKind.FunctionPointer)
+            else if (type.IsReferenceType)
             {
                 // If a named type is not known to the compilation, Roslyn seems
                 // to assume that it's a class and returns true on IsReferenceType,
                 // but this may not be correct, so we use "default" for this case.
                 return sb.Append(type.TypeKind == TypeKind.Error ? "default" : "null");
+            }
+            else if (type.TypeKind == TypeKind.Pointer || type.TypeKind == TypeKind.FunctionPointer)
+            {
+                return sb.Append("null");
             }
             else if (type.TypeKind == TypeKind.Enum || type.IsNativeIntegerType)
             {
