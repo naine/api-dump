@@ -5,8 +5,6 @@ using System.Runtime.CompilerServices;
 
 [assembly: ReferenceAssembly]
 
-// TODO: See what .NET 5 stuff should be added.
-
 namespace System
 {
     public abstract class Array : IList
@@ -120,8 +118,10 @@ namespace System
     public sealed class NonSerializedAttribute : Attribute { }
     public struct Nullable<T> where T : struct
     {
-        public readonly bool HasValue { get; }
-        public readonly T Value { get; }
+        private T value;
+        private int dummy;
+        public readonly bool HasValue => throw null;
+        public readonly T Value => throw null;
     }
     public class Object
     {
@@ -393,6 +393,49 @@ namespace System.Diagnostics.CodeAnalysis
         public DoesNotReturnIfAttribute(bool parameterValue) { }
         public bool ParameterValue => throw null;
     }
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property
+        | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.ReturnValue
+        | AttributeTargets.GenericParameter, Inherited = false)]
+    public sealed class DynamicallyAccessedMembersAttribute : Attribute
+    {
+        public DynamicallyAccessedMembersAttribute(DynamicallyAccessedMemberTypes memberTypes) { }
+        public DynamicallyAccessedMemberTypes MemberTypes => throw null;
+    }
+    [Flags]
+    public enum DynamicallyAccessedMemberTypes
+    {
+        All = -1,
+        None = 0,
+        PublicParameterlessConstructor = 0x1,
+        PublicConstructors = 0x3,
+        NonPublicConstructors = 0x4,
+        PublicMethods = 0x8,
+        NonPublicMethods = 0x10,
+        PublicFields = 0x20,
+        NonPublicFields = 0x40,
+        PublicNestedTypes = 0x80,
+        NonPublicNestedTypes = 0x100,
+        PublicProperties = 0x200,
+        NonPublicProperties = 0x400,
+        PublicEvents = 0x800,
+        NonPublicEvents = 0x1000,
+    }
+    [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method
+        | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
+    public sealed class DynamicDependencyAttribute : Attribute
+    {
+        public DynamicDependencyAttribute(string memberSignature) { }
+        public DynamicDependencyAttribute(string memberSignature, Type type) { }
+        public DynamicDependencyAttribute(string memberSignature, string typeName, string assemblyName) { }
+        public DynamicDependencyAttribute(DynamicallyAccessedMemberTypes memberTypes, Type type) { }
+        public DynamicDependencyAttribute(DynamicallyAccessedMemberTypes memberTypes, string typeName, string assemblyName) { }
+        public string? AssemblyName => throw null;
+        public string? Condition { get => throw null; set { } }
+        public string? MemberSignature => throw null;
+        public DynamicallyAccessedMemberTypes MemberTypes => throw null;
+        public Type? Type => throw null;
+        public string? TypeName => throw null;
+    }
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field
         | AttributeTargets.Parameter | AttributeTargets.ReturnValue, Inherited = false)]
     public sealed class MaybeNullAttribute : Attribute { }
@@ -434,6 +477,13 @@ namespace System.Diagnostics.CodeAnalysis
     {
         public NotNullWhenAttribute(bool returnValue) { }
         public bool ReturnValue => throw null;
+    }
+    [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method, Inherited = false)]
+    public sealed class RequiresUnreferencedCodeAttribute : Attribute
+    {
+        public RequiresUnreferencedCodeAttribute(string message) { }
+        public string Message => throw null;
+        public string? Url { get => throw null; set { } }
     }
 }
 namespace System.Reflection
@@ -630,6 +680,10 @@ namespace System.Runtime.InteropServices
         public StructLayoutAttribute(short layoutKind) { }
         public StructLayoutAttribute(LayoutKind layoutKind) { }
         public LayoutKind Value => throw null;
+    }
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
+    public sealed class SuppressGCTransitionAttribute : Attribute
+    {
     }
 }
 namespace System.Runtime.Serialization
