@@ -5,8 +5,8 @@ ApiDump is licensed under the [MIT license](LICENSE).
 
 ## Building
 
-ApiDump runs on .NET Core, version 3.1 or newer. Building it requires a compatible
-version of the [.NET Core SDK](https://dotnet.microsoft.com/download/dotnet-core/3.1)
+ApiDump runs on .NET, version 5.0 or newer. Building it requires a compatible
+version of the [.NET SDK](https://dotnet.microsoft.com/download/dotnet/5.0)
 to be installed and the `dotnet` CLI tool to be available on the command PATH.
 Including git version information in the build requires `git` to also be available
 on the PATH and the build to be done from a git worktree, but this is not required.

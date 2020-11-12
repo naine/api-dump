@@ -32,11 +32,11 @@ namespace ApiDump
                         if (char.IsWhiteSpace(remaining[end]))
                         {
                             Current = remaining[start..end];
-                            remaining = remaining.Slice(end + 1);
+                            remaining = remaining[(end + 1)..];
                             return true;
                         }
                     }
-                    Current = remaining.Slice(start);
+                    Current = remaining[start..];
                     remaining = default;
                     return true;
                 }

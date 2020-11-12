@@ -118,12 +118,16 @@ namespace System
     public sealed class NonSerializedAttribute : Attribute { }
     public struct Nullable<T> where T : struct
     {
-        public bool HasValue { get; }
-        public T Value { get; }
+        private T value;
+        private int dummy;
+        public readonly bool HasValue => throw null;
+        public readonly T Value => throw null;
     }
     public class Object
     {
+#pragma warning disable CA1821 // Empty finalizer
         ~Object() { }
+#pragma warning restore CA1821 // Empty finalizer
         public virtual bool Equals(object? obj) => throw null;
         public virtual int GetHashCode() => throw null;
         public Type GetType() => throw null;
@@ -138,8 +142,10 @@ namespace System
         public ObsoleteAttribute() { }
         public ObsoleteAttribute(string? message) { }
         public ObsoleteAttribute(string? message, bool error) { }
+        public string? DiagnosticId { get => throw null; set { } }
         public bool IsError => throw null;
         public string? Message => throw null;
+        public string? UrlFormat { get => throw null; set { } }
     }
     [AttributeUsage(AttributeTargets.Parameter, Inherited = true, AllowMultiple = false)]
     public sealed class ParamArrayAttribute : Attribute { }
@@ -268,7 +274,7 @@ namespace System.Collections
     }
     public interface IEnumerator
     {
-        object? Current { get; }
+        object Current { get; }
         bool MoveNext();
         void Reset();
     }
@@ -387,6 +393,49 @@ namespace System.Diagnostics.CodeAnalysis
         public DoesNotReturnIfAttribute(bool parameterValue) { }
         public bool ParameterValue => throw null;
     }
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property
+        | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.ReturnValue
+        | AttributeTargets.GenericParameter, Inherited = false)]
+    public sealed class DynamicallyAccessedMembersAttribute : Attribute
+    {
+        public DynamicallyAccessedMembersAttribute(DynamicallyAccessedMemberTypes memberTypes) { }
+        public DynamicallyAccessedMemberTypes MemberTypes => throw null;
+    }
+    [Flags]
+    public enum DynamicallyAccessedMemberTypes
+    {
+        All = -1,
+        None = 0,
+        PublicParameterlessConstructor = 0x1,
+        PublicConstructors = 0x3,
+        NonPublicConstructors = 0x4,
+        PublicMethods = 0x8,
+        NonPublicMethods = 0x10,
+        PublicFields = 0x20,
+        NonPublicFields = 0x40,
+        PublicNestedTypes = 0x80,
+        NonPublicNestedTypes = 0x100,
+        PublicProperties = 0x200,
+        NonPublicProperties = 0x400,
+        PublicEvents = 0x800,
+        NonPublicEvents = 0x1000,
+    }
+    [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method
+        | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
+    public sealed class DynamicDependencyAttribute : Attribute
+    {
+        public DynamicDependencyAttribute(string memberSignature) { }
+        public DynamicDependencyAttribute(string memberSignature, Type type) { }
+        public DynamicDependencyAttribute(string memberSignature, string typeName, string assemblyName) { }
+        public DynamicDependencyAttribute(DynamicallyAccessedMemberTypes memberTypes, Type type) { }
+        public DynamicDependencyAttribute(DynamicallyAccessedMemberTypes memberTypes, string typeName, string assemblyName) { }
+        public string? AssemblyName => throw null;
+        public string? Condition { get => throw null; set { } }
+        public string? MemberSignature => throw null;
+        public DynamicallyAccessedMemberTypes MemberTypes => throw null;
+        public Type? Type => throw null;
+        public string? TypeName => throw null;
+    }
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field
         | AttributeTargets.Parameter | AttributeTargets.ReturnValue, Inherited = false)]
     public sealed class MaybeNullAttribute : Attribute { }
@@ -394,6 +443,23 @@ namespace System.Diagnostics.CodeAnalysis
     public sealed class MaybeNullWhenAttribute : Attribute
     {
         public MaybeNullWhenAttribute(bool returnValue) { }
+        public bool ReturnValue => throw null;
+    }
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property,
+        Inherited = false, AllowMultiple = true)]
+    public sealed class MemberNotNullAttribute : Attribute
+    {
+        public MemberNotNullAttribute(string member) { }
+        public MemberNotNullAttribute(params string[] members) { }
+        public string[] Members => throw null;
+    }
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property,
+        Inherited = false, AllowMultiple = true)]
+    public sealed class MemberNotNullWhenAttribute : Attribute
+    {
+        public MemberNotNullWhenAttribute(bool returnValue, string member) { }
+        public MemberNotNullWhenAttribute(bool returnValue, params string[] members) { }
+        public string[] Members => throw null;
         public bool ReturnValue => throw null;
     }
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field
@@ -412,6 +478,13 @@ namespace System.Diagnostics.CodeAnalysis
         public NotNullWhenAttribute(bool returnValue) { }
         public bool ReturnValue => throw null;
     }
+    [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method, Inherited = false)]
+    public sealed class RequiresUnreferencedCodeAttribute : Attribute
+    {
+        public RequiresUnreferencedCodeAttribute(string message) { }
+        public string Message => throw null;
+        public string? Url { get => throw null; set { } }
+    }
 }
 namespace System.Reflection
 {
@@ -425,6 +498,10 @@ namespace System.Reflection
 }
 namespace System.Runtime.CompilerServices
 {
+    public class CallConvCdecl { }
+    public class CallConvFastcall { }
+    public class CallConvStdcall { }
+    public class CallConvThiscall { }
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
     public sealed class CallerArgumentExpressionAttribute : Attribute
     {
@@ -459,6 +536,7 @@ namespace System.Runtime.CompilerServices
         public DecimalConstantAttribute(byte scale, byte sign, uint hi, uint mid, uint low) { }
         public decimal Value => throw null;
     }
+    [AttributeUsage(AttributeTargets.All)]
     public class DiscardableAttribute : Attribute { }
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
     public sealed class EnumeratorCancellationAttribute : Attribute { }
@@ -481,6 +559,7 @@ namespace System.Runtime.CompilerServices
     [AttributeUsage(AttributeTargets.Struct)]
     public sealed class IsByRefLikeAttribute : Attribute { }
     public static class IsConst { }
+    public static class IsExternalInit { }
     [AttributeUsage(AttributeTargets.All, Inherited = false)]
     public sealed class IsReadOnlyAttribute : Attribute { }
     public static class IsVolatile { }
@@ -513,6 +592,10 @@ namespace System.Runtime.CompilerServices
         AggressiveOptimization = 0x200,
         InternalCall = 0x1000,
     }
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
+    public sealed class ModuleInitializerAttribute : Attribute { }
+    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+    public sealed class PreserveBaseOverridesAttribute : Attribute { }
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
     public sealed class ReferenceAssemblyAttribute : Attribute
     {
@@ -527,7 +610,9 @@ namespace System.Runtime.CompilerServices
     }
     public static class RuntimeFeature
     {
+        public const string CovariantReturnsOfClasses = "CovariantReturnsOfClasses";
         public const string DefaultImplementationsOfInterfaces = "DefaultImplementationsOfInterfaces";
+        public const string UnmanagedSignatureCallingConvention = "UnmanagedSignatureCallingConvention";
         public const string PortablePdb = "PortablePdb";
         public static bool IsDynamicCodeCompiled => throw null;
         public static bool IsDynamicCodeSupported => throw null;
@@ -595,6 +680,10 @@ namespace System.Runtime.InteropServices
         public StructLayoutAttribute(short layoutKind) { }
         public StructLayoutAttribute(LayoutKind layoutKind) { }
         public LayoutKind Value => throw null;
+    }
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
+    public sealed class SuppressGCTransitionAttribute : Attribute
+    {
     }
 }
 namespace System.Runtime.Serialization

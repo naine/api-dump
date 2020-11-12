@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENCE file in the project root
 // for full license information.
 
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
@@ -35,9 +34,8 @@ namespace ApiDump
                     ushort xv when yf.ConstantValue is ushort yv => xv.CompareTo(yv),
                     long xv when yf.ConstantValue is long yv => xv.CompareTo(yv),
                     ulong xv when yf.ConstantValue is ulong yv => xv.CompareTo(yv),
-                    // TODO: This can be simplified under .NET 5
-                    IntPtr xv when yf.ConstantValue is IntPtr yv => xv.ToInt64().CompareTo(yv.ToInt64()),
-                    UIntPtr xv when yf.ConstantValue is UIntPtr yv => xv.ToUInt64().CompareTo(yv.ToUInt64()),
+                    nint xv when yf.ConstantValue is nint yv => xv.CompareTo(yv),
+                    nuint xv when yf.ConstantValue is nuint yv => xv.CompareTo(yv),
                     _ => 0,
                 }) != 0 ? c : x.Name.CompareTo(y.Name);
             }
@@ -58,13 +56,13 @@ namespace ApiDump
             return 0;
         }
 
-        private int KindOrdering(ISymbol s)
+        private static int KindOrdering(ISymbol s)
         {
             return s switch
             {
                 IFieldSymbol f => f.IsConst ? 0 : 1,
                 IPropertySymbol p => p.IsIndexer ? 4 : 5,
-                IEventSymbol _ => 6,
+                IEventSymbol => 6,
                 IMethodSymbol m => m.MethodKind switch
                 {
                     MethodKind.Constructor => 2,
@@ -75,12 +73,12 @@ namespace ApiDump
                     MethodKind.Conversion => 10,
                     _ => 11,
                 },
-                INamedTypeSymbol _ => 12,
+                INamedTypeSymbol => 12,
                 _ => 13,
             };
         }
 
-        private int GetArity(ISymbol s)
+        private static int GetArity(ISymbol s)
         {
             return s switch
             {
@@ -90,7 +88,7 @@ namespace ApiDump
             };
         }
 
-        private ImmutableArray<IParameterSymbol> GetParameters(ISymbol s)
+        private static ImmutableArray<IParameterSymbol> GetParameters(ISymbol s)
         {
             return s switch
             {

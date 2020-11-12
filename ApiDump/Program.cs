@@ -35,8 +35,8 @@ namespace ApiDump
 
     static class Program
     {
-        private static bool showAllInterfaces = false;
-        private static bool showUnsafeValueTypes = false;
+        private static bool showAllInterfaces;
+        private static bool showUnsafeValueTypes;
         internal static bool ShowNullable { get; private set; } = true;
 
         static int Main(string[] args)
@@ -118,7 +118,7 @@ namespace ApiDump
                 if (useInternalBCL)
                 {
                     using var zip = new ZipArchive(
-                        typeof(Program).Assembly.GetManifestResourceStream($"{nameof(ApiDump)}.DummyBCL.zip"));
+                        typeof(Program).Assembly.GetManifestResourceStream($"{nameof(ApiDump)}.DummyBCL.zip")!);
                     foreach (var entry in zip.Entries)
                     {
                         // CreateFromStream() requires a seekable stream for some reason.
@@ -168,9 +168,8 @@ namespace ApiDump
             Console.WriteLine($"{nameof(ApiDump)} version {{0}}",
                 attribute?.InformationalVersion ?? assembly.GetName().Version!.ToString(3));
 
-            // TODO: Convert this pattern to use 'is not null' when C# 9 is out of preview.
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
-            if (!(copyright is null)) Console.WriteLine(copyright.Copyright.Replace("\u00A9", "(C)"));
+            if (copyright is not null) Console.WriteLine(copyright.Copyright.Replace("\u00A9", "(C)"));
         }
 
         public static bool StartsWith(this ReadOnlySpan<char> span, char value)
@@ -181,8 +180,7 @@ namespace ApiDump
             var assembly = typeof(Program).Assembly;
             PrintVersion(assembly);
             Console.WriteLine();
-            Console.WriteLine("Usage: {0} [options] <dllpaths>...",
-                Path.GetFileNameWithoutExtension(assembly.Location));
+            Console.WriteLine("Usage: {0} [options] <dllpaths>...", assembly.GetName().Name);
 
             string readme;
             using (var stream = assembly.GetManifestResourceStream($"{nameof(ApiDump)}.README.md"))
@@ -203,7 +201,7 @@ namespace ApiDump
             }
 
             int start = 1 + readme.IndexOf('\n', 9 + readme.IndexOf("# Options", StringComparison.Ordinal));
-            readme = readme.Substring(start).Replace("`", "", StringComparison.Ordinal);
+            readme = readme[start..].Replace("`", "", StringComparison.Ordinal);
             readme = Regex.Replace(readme, @"\[([^\]]*)\]\([^\)]*\)", "$1").Trim();
 
             Console.WriteLine();
@@ -250,7 +248,7 @@ namespace ApiDump
             }
         }
 
-        private static bool emptyBlockOpen = false;
+        private static bool emptyBlockOpen;
 
         private static void PrintLine(string line, int indent, bool openBlock = false)
         {
@@ -370,7 +368,7 @@ namespace ApiDump
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
             var bases = new List<INamedTypeSymbol>();
-            if (!(type.BaseType is null) && type.TypeKind == TypeKind.Class
+            if (type.BaseType is not null && type.TypeKind == TypeKind.Class
                 && type.BaseType.SpecialType != SpecialType.System_Object)
             {
                 bases.Add(type.BaseType);
@@ -392,7 +390,7 @@ namespace ApiDump
                     bases.Add(iface);
                 }
             }
-            else if (!(type.EnumUnderlyingType is null))
+            else if (type.EnumUnderlyingType is not null)
             {
                 bases.Add(type.EnumUnderlyingType);
             }
@@ -666,11 +664,11 @@ namespace ApiDump
                     sb.Append(property.Name);
                 }
                 sb.Append(" { ");
-                if (!(property.GetMethod is null))
+                if (property.GetMethod is not null)
                 {
                     sb.AppendAccessor("get", property.GetMethod, property, inMutableStruct);
                 }
-                if (!(property.SetMethod is null))
+                if (property.SetMethod is not null)
                 {
                     sb.AppendAccessor("set", property.SetMethod, property, inMutableStruct);
                 }
@@ -735,7 +733,7 @@ namespace ApiDump
             foreach (var attr in structType.GetAttributes())
             {
                 var type = attr.AttributeClass;
-                if (!(type is null) && type.Name == "UnsafeValueTypeAttribute"
+                if (type is not null && type.Name == "UnsafeValueTypeAttribute"
                     && FullName(type.ContainingNamespace) == "System.Runtime.CompilerServices"
                     && type.Arity == 0 && type.ContainingType is null)
                 {
@@ -750,7 +748,7 @@ namespace ApiDump
             foreach (var attr in enumType.GetAttributes())
             {
                 var type = attr.AttributeClass;
-                if (!(type is null) && type.Name == "FlagsAttribute"
+                if (type is not null && type.Name == "FlagsAttribute"
                     && FullName(type.ContainingNamespace) == "System"
                     && type.Arity == 0 && type.ContainingType is null)
                 {
@@ -767,7 +765,7 @@ namespace ApiDump
                 var type = attr.AttributeClass;
                 if (type is null || type.Name != "FixedBufferAttribute"
                     || FullName(type.ContainingNamespace) != "System.Runtime.CompilerServices"
-                    || type.Arity != 0 || !(type.ContainingType is null)) continue;
+                    || type.Arity != 0 || type.ContainingType is not null) continue;
                 var args = attr.ConstructorArguments;
                 if (args.IsDefault || args.Length != 2 || args[0].Kind != TypedConstantKind.Type) continue;
                 var sizeArg = args[1];

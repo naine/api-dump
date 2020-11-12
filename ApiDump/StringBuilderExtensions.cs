@@ -209,9 +209,8 @@ namespace ApiDump
                 ushort x => x,
                 long x => (ulong)x,
                 ulong x => x,
-                // TODO: This can be simplified under C# 9
-                IntPtr x => (ulong)x.ToInt64(),
-                UIntPtr x => x.ToUInt64(),
+                nint x => (nuint)x,
+                nuint x => x,
                 _ => throw new Exception($"Enum value has invalid type: {value.GetType()}"),
             };
 
@@ -297,26 +296,26 @@ namespace ApiDump
                 else if (float.IsInfinity(f)) return sb.Append("float.PositiveInfinity");
                 return sb.Append(f);
             }
-            else if (!(value is null))
+            else if (value is not null)
             {
                 return type.TypeKind == TypeKind.Enum
                     ? sb.AppendEnumValue(value, (INamedTypeSymbol)type) : sb.Append(value);
             }
-            else if (type.IsReferenceType || type.TypeKind == TypeKind.Pointer)
+            else if (type.IsReferenceType || type.TypeKind == TypeKind.Pointer
+                || type.TypeKind == TypeKind.FunctionPointer)
             {
                 // If a named type is not known to the compilation, Roslyn seems
                 // to assume that it's a class and returns true on IsReferenceType,
                 // but this may not be correct, so we use "default" for this case.
                 return sb.Append(type.TypeKind == TypeKind.Error ? "default" : "null");
             }
-            else if (type.TypeKind == TypeKind.Enum)
+            else if (type.TypeKind == TypeKind.Enum || type.IsNativeIntegerType)
             {
                 return sb.Append('0');
             }
             else if (type is INamedTypeSymbol namedType)
             {
-                var specialType = namedType.OriginalDefinition.SpecialType;
-                switch (specialType)
+                switch (namedType.OriginalDefinition.SpecialType)
                 {
                 case SpecialType.System_Boolean:
                     return sb.Append("false");
@@ -324,11 +323,9 @@ namespace ApiDump
                     return sb.Append("'\\0'");
                 case SpecialType.System_Nullable_T:
                     return sb.Append("null");
-                }
-                // TODO: In C# 9, this can be inlined into the switch using relational patterns.
-                if (specialType >= SpecialType.System_SByte
-                    && specialType <= SpecialType.System_Double)
-                {
+                case >= SpecialType.System_SByte and <= SpecialType.System_Double:
+                case SpecialType.System_IntPtr:
+                case SpecialType.System_UIntPtr:
                     return sb.Append('0');
                 }
             }
@@ -407,7 +404,7 @@ namespace ApiDump
         public static StringBuilder AppendTypeConstraints(this StringBuilder sb,
             List<(string, List<string>)>? constraints)
         {
-            if (!(constraints is null))
+            if (constraints is not null)
             {
                 foreach ((string param, var constraint) in constraints)
                 {
