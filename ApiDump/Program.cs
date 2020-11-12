@@ -706,11 +706,11 @@ namespace ApiDump
                 sb.Append(implemented.Name);
             }
             sb.Append(" { ");
-            if (!(property.GetMethod is null))
+            if (property.GetMethod is not null)
             {
                 sb.AppendAccessor("get", property.GetMethod, property, false);
             }
-            if (!(property.SetMethod is null))
+            if (property.SetMethod is not null)
             {
                 sb.AppendAccessor("set", property.SetMethod, property, false);
             }
