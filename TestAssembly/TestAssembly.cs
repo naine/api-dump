@@ -113,6 +113,7 @@ namespace TestAssembly
         public void Foo5(dynamic x) => throw new NotImplementedException();
         public static void Foo6(GenContainer<int>.GenEnum x) { }
         public static void Foo7((int a, int, int c, int, int e, int, int g, int, int? i, int) x) { }
+        public virtual AbstractClass CovReturn() => throw new NotImplementedException();
     }
 
     public static class GenContainer<T>
@@ -129,6 +130,9 @@ namespace TestAssembly
         public override ref int Foo2(in decimal x) => throw new NotImplementedException();
         public sealed override ref readonly object Foo3(ref string x) => throw new NotImplementedException();
         public override dynamic Foo4(out (int a, double b) x) => throw new NotImplementedException();
+#if NET5_0
+        public override ConcreteClass CovReturn() => throw new NotImplementedException();
+#endif
     }
 
     public sealed class SealedClass : ConcreteClass

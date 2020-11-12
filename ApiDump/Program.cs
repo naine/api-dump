@@ -29,8 +29,7 @@ namespace ApiDump
      *    + Native-sized integers.
      *    + Raw function pointers.
      *    + Init accessors.
-     *    + Records (maybe unless they are API-wise indistinguishable from classes).
-     *    + Maybe more. Evaluate when C# 9 leaves preview.
+     *    + Records (see if they can be distinguished from equivalent classes).
      */
 
     static class Program
