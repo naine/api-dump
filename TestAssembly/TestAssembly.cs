@@ -6,7 +6,11 @@ using System;
 using System.Collections;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
+[assembly: TypeForwardedTo(typeof(DeflateStream))]
+[assembly: TypeForwardedTo(typeof(CompressionMode))]
 
 namespace TestAssembly
 {
@@ -101,6 +105,58 @@ namespace TestAssembly
             => throw new NotImplementedException();
         public static void EnumFlagsUnknownDefault(DllImportSearchPath x = default)
             => throw new NotImplementedException();
+
+        public static nint NativeInt;
+        public static IntPtr NativeIntPtr;
+        public static nuint NativeUInt;
+        public static UIntPtr NativeUIntPtr;
+    }
+
+    public static unsafe class FunctionPointers
+    {
+        public static delegate*<void> MAction;
+        public static delegate* managed<void> MActionExplicit;
+        public static delegate*<int, void> MAction1;
+        public static delegate*<int, nuint, void> MAction2;
+        public static delegate*<int> MFunc;
+        public static delegate* managed<int> MFuncExplicit;
+        public static delegate*<int, int> MFunc1;
+        public static delegate*<int, nuint, int> MFunc2;
+#if NET5_0
+        public static delegate* unmanaged<void> UDefAction;
+        public static delegate* unmanaged<int, void> UDefAction1;
+        public static delegate* unmanaged<int, nuint, void> UDefAction2;
+        public static delegate* unmanaged<int> UDefFunc;
+        public static delegate* unmanaged<int, int> UDefFunc1;
+        public static delegate* unmanaged<int, nuint, int> UDefFunc2;
+#endif
+        public static delegate* unmanaged[Cdecl]<void> UCdeclAction;
+        public static delegate* unmanaged[Cdecl]<int, void> UCdeclAction1;
+        public static delegate* unmanaged[Cdecl]<int, nuint, void> UCdeclAction2;
+        public static delegate* unmanaged[Cdecl]<int> UCdeclFunc;
+        public static delegate* unmanaged[Cdecl]<int, int> UCdeclFunc1;
+        public static delegate* unmanaged[Cdecl]<int, nuint, int> UCdeclFunc2;
+
+        public static delegate* unmanaged[Stdcall]<void> UStdcallAction;
+        public static delegate* unmanaged[Stdcall]<int, void> UStdcallAction1;
+        public static delegate* unmanaged[Stdcall]<int, nuint, void> UStdcallAction2;
+        public static delegate* unmanaged[Stdcall]<int> UStdcallFunc;
+        public static delegate* unmanaged[Stdcall]<int, int> UStdcallFunc1;
+        public static delegate* unmanaged[Stdcall]<int, nuint, int> UStdcallFunc2;
+
+        public static delegate* unmanaged[Thiscall]<void> UThiscallAction;
+        public static delegate* unmanaged[Thiscall]<int, void> UThiscallAction1;
+        public static delegate* unmanaged[Thiscall]<int, nuint, void> UThiscallAction2;
+        public static delegate* unmanaged[Thiscall]<int> UThiscallFunc;
+        public static delegate* unmanaged[Thiscall]<int, int> UThiscallFunc1;
+        public static delegate* unmanaged[Thiscall]<int, nuint, int> UThiscallFunc2;
+
+        public static delegate* unmanaged[Fastcall]<void> UFastcallAction;
+        public static delegate* unmanaged[Fastcall]<int, void> UFastcallAction1;
+        public static delegate* unmanaged[Fastcall]<int, nuint, void> UFastcallAction2;
+        public static delegate* unmanaged[Fastcall]<int> UFastcallFunc;
+        public static delegate* unmanaged[Fastcall]<int, int> UFastcallFunc1;
+        public static delegate* unmanaged[Fastcall]<int, nuint, int> UFastcallFunc2;
     }
 
     public abstract class AbstractClass : IEnumerable
@@ -145,6 +201,44 @@ namespace TestAssembly
     {
         public fixed int Stinx[16];
 
+        public readonly int Prop1 { get; }
+        public int Prop2 { readonly get; set; }
+        public readonly int Prop3 { get => throw new NotImplementedException(); }
+        public int Prop4
+        {
+            readonly get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
+        public int Prop5
+        {
+            get => throw new NotImplementedException();
+            readonly set => throw new NotImplementedException();
+        }
+        public readonly int Prop6
+        {
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
+        }
+#if NET5_0
+        public int InitProp1
+        {
+            get => throw new NotImplementedException();
+            init => throw new NotImplementedException();
+        }
+        public int InitProp2 { get; init; }
+        public int InitProp3 { readonly get; init; }
+        public int InitProp4
+        {
+            readonly get => throw new NotImplementedException();
+            init => throw new NotImplementedException();
+        }
+        public readonly int InitProp5
+        {
+            get => throw new NotImplementedException();
+            init => throw new NotImplementedException();
+        }
+#endif
+
         public static void Foo1() { }
         public void Foo2() => throw new NotImplementedException();
         public readonly void Foo3() => throw new NotImplementedException();
@@ -181,6 +275,10 @@ namespace TestAssembly
         int Prop2 { get; set; }
         ref int Prop3 { get; }
         ref readonly int Prop4 { get; }
+#if NET5_0
+        int Prop5 { get; init; }
+        int Prop6 { get; init; }
+#endif
         event VoidDelegate Event1;
         event ValDelegate Event2;
         void Method();
@@ -210,6 +308,14 @@ namespace TestAssembly
         }
         public ref int Prop3 => throw new NotImplementedException();
         public ref readonly int Prop4 => throw new NotImplementedException();
+#if NET5_0
+        public int Prop5
+        {
+            get => throw new NotImplementedException();
+            init => throw new NotImplementedException();
+        }
+        public int Prop6 { get; init; }
+#endif
         public event VoidDelegate? Event1;
         public event ValDelegate Event2 { add { } remove { } }
         public IEnumerator GetEnumerator() => throw new NotImplementedException();

@@ -10,7 +10,7 @@ namespace ApiDump
 {
     class MemberOrdering : IComparer<ISymbol?>
     {
-        public static readonly MemberOrdering Comparer = new MemberOrdering();
+        public static readonly MemberOrdering Comparer = new();
 
         private MemberOrdering() { }
 

@@ -3,6 +3,7 @@
     <AssemblyName>apidump</AssemblyName>
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RollForward>Major</RollForward>
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
     <AssemblyTitle>$(MSBuildProjectName)</AssemblyTitle>

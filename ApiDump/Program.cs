@@ -8,15 +8,19 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
+[module: SkipLocalsInit]
+
 namespace ApiDump
 {
     /* TODO: The following need to be handled correctly:
      *  - Type names should be qualified where ambiguous or nested and not in scope.
+     *  - Add option to control whether forwarded types are hidden, listed, or defined.
      *  - Some attributes should be displayed.
      *    + Use command line options to explicitly show or hide specific attributes.
      *    + Need to support attributes that compile into IL metadata, such as StructLayout.
@@ -26,9 +30,7 @@ namespace ApiDump
      *      ~ Includes nullability attributes like AllowNull only if not --no-nullable.
      *      ~ Allow specifying default for unknown attributes.
      *  - C# 9 features:
-     *    + Native-sized integers.
-     *    + Raw function pointers.
-     *    + Init accessors.
+     *    + Unmanaged calling convention methods.
      *    + Records (see if they can be distinguished from equivalent classes).
      */
 
@@ -40,7 +42,7 @@ namespace ApiDump
 
         static int Main(string[] args)
         {
-            var dlls = new List<string>();
+            var dlls = new List<string>(args.Length);
             bool useInternalBCL = true;
             foreach (string arg in args)
             {
@@ -86,7 +88,7 @@ namespace ApiDump
             }
             try
             {
-                var refs = new List<MetadataReference>();
+                var refs = new List<MetadataReference>(4 + dlls.Count);
                 foreach (string path in dlls)
                 {
                     try
@@ -117,7 +119,7 @@ namespace ApiDump
                 if (useInternalBCL)
                 {
                     using var zip = new ZipArchive(
-                        typeof(Program).Assembly.GetManifestResourceStream($"{nameof(ApiDump)}.DummyBCL.zip")!);
+                        typeof(Program).Assembly.GetManifestResourceStream("ApiDump.DummyBCL.zip")!);
                     foreach (var entry in zip.Entries)
                     {
                         // CreateFromStream() requires a seekable stream for some reason.
@@ -129,7 +131,7 @@ namespace ApiDump
                     }
                 }
                 var comp = CSharpCompilation.Create("dummy", null, refs,
-                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+                    new(OutputKind.DynamicallyLinkedLibrary));
                 var diagnostics = comp.GetDiagnostics();
                 if (!diagnostics.IsDefaultOrEmpty)
                 {
@@ -139,12 +141,12 @@ namespace ApiDump
                 var globalNamespaces = comp.GlobalNamespace.ConstituentNamespaces;
                 if (globalNamespaces.Length != refs.Count + 1)
                 {
-                    throw new Exception($"Unexpected number of global namespaces: {globalNamespaces.Length}");
+                    throw new($"Unexpected number of global namespaces: {globalNamespaces.Length}");
                 }
                 if (!SymbolEqualityComparer.Default.Equals(
                     globalNamespaces[0], comp.Assembly.GlobalNamespace))
                 {
-                    throw new Exception("Unexpected first global namespace:"
+                    throw new("Unexpected first global namespace:"
                         + $" {globalNamespaces[0].ContainingAssembly.Name}");
                 }
                 for (int i = 1; i <= dlls.Count; ++i)
@@ -307,7 +309,7 @@ namespace ApiDump
             }
         }
 
-        private static string? FullName(INamespaceSymbol? ns)
+        public static string? FullName(this INamespaceSymbol? ns)
         {
             if (ns is null || ns.IsGlobalNamespace) return null;
             string? parent = FullName(ns.ContainingNamespace);
@@ -327,7 +329,7 @@ namespace ApiDump
                 sb.Append("protected ");
                 break;
             default:
-                throw new Exception($"Type {type} has unexpected visibility {type.DeclaredAccessibility}");
+                throw new($"Type {type} has unexpected visibility {type.DeclaredAccessibility}");
             }
             switch (type.TypeKind)
             {
@@ -352,7 +354,7 @@ namespace ApiDump
             case TypeKind.Delegate:
                 if (type.DelegateInvokeMethod is null)
                 {
-                    throw new Exception($"Delegate type has null invoke method: {type}");
+                    throw new($"Delegate type has null invoke method: {type}");
                 }
                 PrintLine(sb.Append("delegate ")
                     .AppendReturnSignature(type.DelegateInvokeMethod)
@@ -363,7 +365,7 @@ namespace ApiDump
                     .Append(';').ToString(), indent);
                 return;
             default:
-                throw new Exception($"Named type {type} has unexpected kind {type.TypeKind}");
+                throw new($"Named type {type} has unexpected kind {type.TypeKind}");
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
             var bases = new List<INamedTypeSymbol>();
@@ -415,41 +417,39 @@ namespace ApiDump
             PrintEndBlock(indent);
         }
 
-        private static readonly Dictionary<string, string> conversionNames
-            = new Dictionary<string, string>
-            {
-                [WellKnownMemberNames.ExplicitConversionName] = "explicit",
-                [WellKnownMemberNames.ImplicitConversionName] = "implicit",
-            };
+        private static readonly Dictionary<string, string> conversionNames = new()
+        {
+            [WellKnownMemberNames.ExplicitConversionName] = "explicit",
+            [WellKnownMemberNames.ImplicitConversionName] = "implicit",
+        };
 
-        private static readonly Dictionary<string, string> operators
-            = new Dictionary<string, string>
-            {
-                [WellKnownMemberNames.AdditionOperatorName] = "+",
-                [WellKnownMemberNames.BitwiseAndOperatorName] = "&",
-                [WellKnownMemberNames.BitwiseOrOperatorName] = "|",
-                [WellKnownMemberNames.DecrementOperatorName] = "--",
-                [WellKnownMemberNames.DivisionOperatorName] = "/",
-                [WellKnownMemberNames.EqualityOperatorName] = "==",
-                [WellKnownMemberNames.ExclusiveOrOperatorName] = "^",
-                [WellKnownMemberNames.FalseOperatorName] = "false",
-                [WellKnownMemberNames.GreaterThanOperatorName] = ">",
-                [WellKnownMemberNames.GreaterThanOrEqualOperatorName] = ">=",
-                [WellKnownMemberNames.IncrementOperatorName] = "++",
-                [WellKnownMemberNames.InequalityOperatorName] = "!=",
-                [WellKnownMemberNames.LeftShiftOperatorName] = "<<",
-                [WellKnownMemberNames.LessThanOperatorName] = "<",
-                [WellKnownMemberNames.LessThanOrEqualOperatorName] = "<=",
-                [WellKnownMemberNames.LogicalNotOperatorName] = "!",
-                [WellKnownMemberNames.ModulusOperatorName] = "%",
-                [WellKnownMemberNames.MultiplyOperatorName] = "*",
-                [WellKnownMemberNames.OnesComplementOperatorName] = "~",
-                [WellKnownMemberNames.RightShiftOperatorName] = ">>",
-                [WellKnownMemberNames.SubtractionOperatorName] = "-",
-                [WellKnownMemberNames.TrueOperatorName] = "true",
-                [WellKnownMemberNames.UnaryNegationOperatorName] = "-",
-                [WellKnownMemberNames.UnaryPlusOperatorName] = "+",
-            };
+        private static readonly Dictionary<string, string> operators = new()
+        {
+            [WellKnownMemberNames.AdditionOperatorName] = "+",
+            [WellKnownMemberNames.BitwiseAndOperatorName] = "&",
+            [WellKnownMemberNames.BitwiseOrOperatorName] = "|",
+            [WellKnownMemberNames.DecrementOperatorName] = "--",
+            [WellKnownMemberNames.DivisionOperatorName] = "/",
+            [WellKnownMemberNames.EqualityOperatorName] = "==",
+            [WellKnownMemberNames.ExclusiveOrOperatorName] = "^",
+            [WellKnownMemberNames.FalseOperatorName] = "false",
+            [WellKnownMemberNames.GreaterThanOperatorName] = ">",
+            [WellKnownMemberNames.GreaterThanOrEqualOperatorName] = ">=",
+            [WellKnownMemberNames.IncrementOperatorName] = "++",
+            [WellKnownMemberNames.InequalityOperatorName] = "!=",
+            [WellKnownMemberNames.LeftShiftOperatorName] = "<<",
+            [WellKnownMemberNames.LessThanOperatorName] = "<",
+            [WellKnownMemberNames.LessThanOrEqualOperatorName] = "<=",
+            [WellKnownMemberNames.LogicalNotOperatorName] = "!",
+            [WellKnownMemberNames.ModulusOperatorName] = "%",
+            [WellKnownMemberNames.MultiplyOperatorName] = "*",
+            [WellKnownMemberNames.OnesComplementOperatorName] = "~",
+            [WellKnownMemberNames.RightShiftOperatorName] = ">>",
+            [WellKnownMemberNames.SubtractionOperatorName] = "-",
+            [WellKnownMemberNames.TrueOperatorName] = "true",
+            [WellKnownMemberNames.UnaryNegationOperatorName] = "-",
+            [WellKnownMemberNames.UnaryPlusOperatorName] = "+",
+        };
 
         private static void PrintMember(ISymbol member, int indent)
         {
@@ -522,7 +522,7 @@ namespace ApiDump
             case Accessibility.NotApplicable when inInterface:
                 break;
             default:
-                throw new Exception($"{member.Kind} member has unexpected"
+                throw new($"{member.Kind} member has unexpected"
                     + $" visibility {member.DeclaredAccessibility}: {member}");
             }
             bool inMutableStruct = containingType.TypeKind == TypeKind.Struct
@@ -646,7 +646,7 @@ namespace ApiDump
                     PrintLine(sb.Append(';').ToString(), indent);
                     break;
                 default:
-                    throw new Exception($"Unexpected method kind {method.MethodKind}: {method}");
+                    throw new($"Unexpected method kind {method.MethodKind}: {method}");
                 }
                 break;
             case IPropertySymbol property:
@@ -665,16 +665,16 @@ namespace ApiDump
                 sb.Append(" { ");
                 if (property.GetMethod is not null)
                 {
-                    sb.AppendAccessor("get", property.GetMethod, property, inMutableStruct);
+                    sb.AppendAccessor(false, property.GetMethod, property, inMutableStruct);
                 }
                 if (property.SetMethod is not null)
                 {
-                    sb.AppendAccessor("set", property.SetMethod, property, inMutableStruct);
+                    sb.AppendAccessor(true, property.SetMethod, property, inMutableStruct);
                 }
                 PrintLine(sb.Append('}').ToString(), indent);
                 break;
             default:
-                throw new Exception($"Unexpected member kind {member.Kind}: {member}");
+                throw new($"Unexpected member kind {member.Kind}: {member}");
             }
         }
 
@@ -707,11 +707,11 @@ namespace ApiDump
             sb.Append(" { ");
             if (property.GetMethod is not null)
             {
-                sb.AppendAccessor("get", property.GetMethod, property, false);
+                sb.AppendAccessor(false, property.GetMethod, property, false);
             }
             if (property.SetMethod is not null)
             {
-                sb.AppendAccessor("set", property.SetMethod, property, false);
+                sb.AppendAccessor(true, property.SetMethod, property, false);
             }
             PrintLine(sb.Append('}').ToString(), indent);
         }
@@ -774,7 +774,7 @@ namespace ApiDump
                     return true;
                 }
             }
-            size = 0; // TODO: Use Unsafe.SkipInit in .NET 5.
+            Unsafe.SkipInit(out size);
             return false;
         }
     }

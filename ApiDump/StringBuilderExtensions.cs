@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Numerics;
+using System.Reflection.Metadata;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
@@ -13,7 +14,7 @@ namespace ApiDump
 {
     static class StringBuilderExtensions
     {
-        public static StringBuilder AppendAccessor(this StringBuilder sb, string name,
+        public static StringBuilder AppendAccessor(this StringBuilder sb, bool isSetter,
             IMethodSymbol accessor, IPropertySymbol property, bool inMutableStruct)
         {
             switch (accessor.DeclaredAccessibility)
@@ -30,33 +31,48 @@ namespace ApiDump
             case Accessibility.Internal:
                 return sb;
             }
-            if (inMutableStruct && accessor.IsReadOnly) sb.Append("readonly ");
-            return sb.Append(name).Append("; ");
+            bool isInitAccessor = isSetter && accessor.IsInitOnly;
+            if (inMutableStruct && !isInitAccessor && accessor.IsReadOnly)
+            {
+                // TODO: If all non-init accessors are readonly, the keyword
+                // should be displayed on the property, not the accessors.
+                sb.Append("readonly ");
+            }
+            return sb.Append(isInitAccessor ? "init" : (isSetter ? "set" : "get")).Append("; ");
         }
 
-        private static readonly Dictionary<SpecialType, string> keywordTypes
-            = new Dictionary<SpecialType, string>
-            {
-                [SpecialType.System_Object] = "object",
-                [SpecialType.System_Void] = "void",
-                [SpecialType.System_Byte] = "byte",
-                [SpecialType.System_SByte] = "sbyte",
-                [SpecialType.System_Int16] = "short",
-                [SpecialType.System_UInt16] = "ushort",
-                [SpecialType.System_Int32] = "int",
-                [SpecialType.System_UInt32] = "uint",
-                [SpecialType.System_Int64] = "long",
-                [SpecialType.System_UInt64] = "ulong",
-                [SpecialType.System_Single] = "float",
-                [SpecialType.System_Double] = "double",
-                [SpecialType.System_Decimal] = "decimal",
-                [SpecialType.System_Boolean] = "bool",
-                [SpecialType.System_Char] = "char",
-                [SpecialType.System_String] = "string",
-            };
+        private static readonly Dictionary<SpecialType, string> keywordTypes = new()
+        {
+            [SpecialType.System_Object] = "object",
+            [SpecialType.System_Void] = "void",
+            [SpecialType.System_Byte] = "byte",
+            [SpecialType.System_SByte] = "sbyte",
+            [SpecialType.System_Int16] = "short",
+            [SpecialType.System_UInt16] = "ushort",
+            [SpecialType.System_Int32] = "int",
+            [SpecialType.System_UInt32] = "uint",
+            [SpecialType.System_Int64] = "long",
+            [SpecialType.System_UInt64] = "ulong",
+            [SpecialType.System_Single] = "float",
+            [SpecialType.System_Double] = "double",
+            [SpecialType.System_Decimal] = "decimal",
+            [SpecialType.System_Boolean] = "bool",
+            [SpecialType.System_Char] = "char",
+            [SpecialType.System_String] = "string",
+        };
 
         public static StringBuilder AppendType(this StringBuilder sb, ITypeSymbol type)
         {
+            if (type.IsNativeIntegerType)
+            {
+                return sb.Append(type.SpecialType switch
+                {
+                    SpecialType.System_IntPtr => "nint",
+                    SpecialType.System_UIntPtr => "nuint",
+                    _ => throw new($"Unknown native integer type '{type}' (SpecialType={type.SpecialType},"
+                        + $" UnderlyingType={(type as INamedTypeSymbol)?.NativeIntegerUnderlyingType})"),
+                });
+            }
             switch (type)
             {
             case INamedTypeSymbol namedType:
@@ -89,8 +105,7 @@ namespace ApiDump
                 var nullabilities = namedType.TypeArgumentNullableAnnotations;
                 if (nullabilities.Length != typeArguments.Length)
                 {
-                    throw new Exception(
-                        $"TypeArgumentNullableAnnotations.Length ({nullabilities.Length})"
+                    throw new($"TypeArgumentNullableAnnotations.Length ({nullabilities.Length})"
                         + $" != TypeArguments.Length ({typeArguments.Length})");
                 }
                 sb.Append('<');
@@ -110,16 +125,55 @@ namespace ApiDump
                     else for (int i = 1; i < arrayType.Rank; ++i) sb.Append(',');
                 }
                 return sb.Append(']');
+            case IFunctionPointerTypeSymbol fnptrType:
+                sb.Append("delegate*");
+                var fnSig = fnptrType.Signature;
+                if (fnSig.CallingConvention == SignatureCallingConvention.Unmanaged)
+                {
+                    sb.Append(" unmanaged");
+                    var ccMods = fnSig.UnmanagedCallingConventionTypes;
+                    if (!ccMods.IsDefaultOrEmpty)
+                    {
+                        sb.Append('[');
+                        for (int i = 0; i < ccMods.Length; ++i)
+                        {
+                            if (i != 0) sb.Append(", ");
+                            var ccModType = ccMods[i];
+                            string modName = ccModType.Name;
+                            sb.Append(modName.Length > 8
+                                && modName.StartsWith("CallConv", StringComparison.Ordinal)
+                                && ccModType.ContainingNamespace?.FullName() == "System.Runtime.CompilerServices"
+                                ? modName.AsSpan()[8..] : modName);
+                        }
+                        sb.Append(']');
+                    }
+                }
+                else
+                {
+                    sb.Append(fnSig.CallingConvention switch
+                    {
+                        SignatureCallingConvention.Default => "",
+                        SignatureCallingConvention.CDecl => " unmanaged[Cdecl]",
+                        SignatureCallingConvention.StdCall => " unmanaged[Stdcall]",
+                        SignatureCallingConvention.ThisCall => " unmanaged[Thiscall]",
+                        SignatureCallingConvention.FastCall => " unmanaged[Fastcall]",
+                        _ => throw new($"Unknown calling convention {fnSig.CallingConvention}"),
+                    });
+                }
+                sb.AppendParameters(fnSig.Parameters, false, '<', null);
+                if (fnSig.Parameters.Length != 0) sb.Append(", ");
+                return sb.AppendReturnSignature(fnSig).Append('>');
             }
             return sb.Append(type.TypeKind switch
             {
                 TypeKind.Dynamic => "dynamic",
                 TypeKind.TypeParameter => type.Name,
-                // TODO: Support FunctionPointers.
-                _ => throw new Exception($"Type {type} has unexpected kind {type.TypeKind}"),
+                _ => throw new($"Type {type} has unexpected kind {type.TypeKind}"),
             });
         }
 
+        // TODO: See if this is still needed now that
+        // NullableAnnotation is a member of ITypeSymbol.
         public static StringBuilder AppendType(this StringBuilder sb,
             ITypeSymbol type, NullableAnnotation nullability)
         {
@@ -141,13 +195,13 @@ namespace ApiDump
                 RefKind.Ref => "ref ",
                 RefKind.RefReadOnly => "ref readonly ",
                 RefKind.None => "",
-                _ => throw new Exception($"Invalid ref kind for return: {method.RefKind}"),
+                _ => throw new($"Invalid ref kind for return: {method.RefKind}"),
             }).AppendType(method.ReturnType, method.ReturnNullableAnnotation);
         }
 
         public static StringBuilder AppendParameters(this StringBuilder sb,
             ImmutableArray<IParameterSymbol> parameters,
-            bool isExtension = false, char open = '(', char close = ')')
+            bool isExtension = false, char open = '(', char? close = ')')
         {
             sb.Append(open);
             for (int i = 0; i < parameters.Length; ++i)
@@ -162,14 +216,16 @@ namespace ApiDump
                     RefKind.Out => "out ",
                     RefKind.In => "in ",
                     RefKind.None => "",
-                    _ => throw new Exception($"Invalid ref kind for parameter: {p.RefKind}"),
-                }).AppendType(p.Type, p.NullableAnnotation).Append(' ').Append(p.Name);
+                    _ => throw new($"Invalid ref kind for parameter: {p.RefKind}"),
+                }).AppendType(p.Type, p.NullableAnnotation);
+                if (!string.IsNullOrEmpty(p.Name)) sb.Append(' ').Append(p.Name);
                 if (p.HasExplicitDefaultValue)
                 {
                     sb.Append(" = ").AppendConstant(p.ExplicitDefaultValue, p.Type);
                 }
             }
-            return sb.Append(close);
+            if (close.HasValue) sb.Append(close.GetValueOrDefault());
+            return sb;
         }
         private static StringBuilder AppendChar(this StringBuilder sb, int c)
         {
@@ -211,20 +267,18 @@ namespace ApiDump
                 ulong x => x,
                 nint x => (nuint)x,
                 nuint x => x,
-                _ => throw new Exception($"Enum value has invalid type: {value.GetType()}"),
+                _ => throw new($"Enum value has invalid type: {value.GetType()}"),
             };
 
         private static readonly Dictionary<INamedTypeSymbol,
-            (bool IsFlags, Dictionary<ulong, string> Values)> enumCache
-            = new Dictionary<INamedTypeSymbol,
-                (bool, Dictionary<ulong, string>)>(SymbolEqualityComparer.Default);
+            (bool IsFlags, Dictionary<ulong, string> Values)> enumCache = new(SymbolEqualityComparer.Default);
 
         private static StringBuilder AppendEnumValue(this StringBuilder sb, object value, INamedTypeSymbol type)
         {
             type = type.OriginalDefinition;
             if (!enumCache.TryGetValue(type, out var enumInfo))
             {
-                enumCache[type] = enumInfo = (type.IsFlagsEnum(), new Dictionary<ulong, string>());
+                enumCache[type] = enumInfo = (type.IsFlagsEnum(), new());
                 foreach (var member in type.GetMembers())
                 {
                     if (member is IFieldSymbol field)
@@ -301,13 +355,6 @@ namespace ApiDump
                 return type.TypeKind == TypeKind.Enum
                     ? sb.AppendEnumValue(value, (INamedTypeSymbol)type) : sb.Append(value);
             }
-            else if (type.IsReferenceType)
-            {
-                // If a named type is not known to the compilation, Roslyn seems
-                // to assume that it's a class and returns true on IsReferenceType,
-                // but this may not be correct, so we use "default" for this case.
-                return sb.Append(type.TypeKind == TypeKind.Error ? "default" : "null");
-            }
             else if (type.TypeKind == TypeKind.Pointer || type.TypeKind == TypeKind.FunctionPointer)
             {
                 return sb.Append("null");
@@ -315,6 +362,13 @@ namespace ApiDump
             else if (type.TypeKind == TypeKind.Enum || type.IsNativeIntegerType)
             {
                 return sb.Append('0');
+            }
+            else if (type.IsReferenceType)
+            {
+                // If a named type is not known to the compilation, Roslyn seems
+                // to assume that it's a class and returns true on IsReferenceType,
+                // but this may not be correct, so we use "default" for this case.
+                return sb.Append(type.TypeKind == TypeKind.Error ? "default" : "null");
             }
             else if (type is INamedTypeSymbol namedType)
             {
@@ -326,9 +380,9 @@ namespace ApiDump
                     return sb.Append("'\\0'");
                 case SpecialType.System_Nullable_T:
                     return sb.Append("null");
-                case >= SpecialType.System_SByte and <= SpecialType.System_Double:
-                case SpecialType.System_IntPtr:
-                case SpecialType.System_UIntPtr:
+                case >= SpecialType.System_SByte and <= SpecialType.System_UIntPtr:
+                    // This range includes string, but if a symbol identifies as string
+                    // then the reference type path above will have already been taken.
                     return sb.Append('0');
                 }
             }
@@ -352,7 +406,7 @@ namespace ApiDump
                         VarianceKind.In => "in ",
                         VarianceKind.Out => "out ",
                         VarianceKind.None => "",
-                        _ => throw new Exception($"Invalid variance kind: {param.Variance}"),
+                        _ => throw new($"Invalid variance kind: {param.Variance}"),
                     }).Append(param.Name);
                     var constraint = new List<string>();
                     if (param.HasUnmanagedTypeConstraint)
@@ -379,8 +433,7 @@ namespace ApiDump
                         var nullabilities = param.ConstraintNullableAnnotations;
                         if (nullabilities.Length != constraintTypes.Length)
                         {
-                            throw new Exception(
-                                $"ConstraintNullableAnnotations.Length ({nullabilities.Length})"
+                            throw new($"ConstraintNullableAnnotations.Length ({nullabilities.Length})"
                                 + $" != ConstraintTypes.Length ({constraintTypes.Length})");
                         }
                         for (int j = 0; j < constraintTypes.Length; ++j)
@@ -395,7 +448,7 @@ namespace ApiDump
                     }
                     if (constraint.Count != 0)
                     {
-                        constraints ??= new List<(string, List<string>)>();
+                        constraints ??= new();
                         constraints.Add((param.Name, constraint));
                     }
                 }

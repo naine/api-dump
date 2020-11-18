@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net5.0;netcoreapp1.1;netstandard2.1;netstandard1.6;net48;net45</TargetFrameworks>
+    <TargetFrameworks>net5.0;netcoreapp3.1;netcoreapp1.1;netstandard2.1;netstandard1.6;net48;net45</TargetFrameworks>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <NoWarn>CS0067;IDE0060;$(NoWarn)</NoWarn>
+    <NoWarn>CS0067;CA1822;CA2211;IDE0060;$(NoWarn)</NoWarn>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netstandard2.1'">
+  <PropertyGroup Condition="'$(TargetFramework)'=='net5.0' OR '$(TargetFramework)'=='netcoreapp3.1' OR '$(TargetFramework)'=='netstandard2.1'">
     <DefineConstants>INTERFACE_DEFAULTS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(TargetFramework)'=='net45' OR '$(TargetFramework)'=='netstandard1.6' OR '$(TargetFramework)'=='netcoreapp1.1'">
