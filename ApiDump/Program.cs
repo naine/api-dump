@@ -570,7 +570,6 @@ namespace ApiDump
                 PrintLine(sb.Append(';').ToString(), indent);
                 break;
             case IEventSymbol eventSymbol:
-                sb.AppendCommonModifiers(eventSymbol, false);
                 bool showAccessors = false;
                 IMethodSymbol? add = null, remove = null;
                 if (inMutableStruct)
@@ -593,7 +592,8 @@ namespace ApiDump
                         break;
                     }
                 }
-                sb.Append("event ").AppendType(eventSymbol.Type).Append(' ').Append(eventSymbol.Name);
+                sb.AppendCommonModifiers(eventSymbol, false).Append("event ")
+                    .AppendType(eventSymbol.Type).Append(' ').Append(eventSymbol.Name);
                 if (showAccessors)
                 {
                     sb.Append(" { ");
@@ -618,8 +618,8 @@ namespace ApiDump
                 case MethodKind.Ordinary:
                 case MethodKind.Conversion:
                 case MethodKind.UserDefinedOperator:
-                    sb.AppendCommonModifiers(method, false);
                     if (inMutableStruct && method.IsReadOnly) sb.Append("readonly ");
+                    sb.AppendCommonModifiers(method, false);
                     if (method.MethodKind == MethodKind.Conversion
                         && conversionNames.TryGetValue(method.Name, out var keyword))
                     {
@@ -648,6 +648,14 @@ namespace ApiDump
                 }
                 break;
             case IPropertySymbol property:
+                if (inMutableStruct && property.GetMethod?.IsReadOnly != false
+                    && (property.SetMethod is null or { IsInitOnly: true } or { IsReadOnly: true }))
+                {
+                    // All non-init accessors are readonly, so display the keyword on the property.
+                    // Unsetting inMutableStruct prevents duplicating it onto the accessors.
+                    sb.Append("readonly ");
+                    inMutableStruct = false;
+                }
                 sb.AppendCommonModifiers(property, false);
                 if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
                 else if (property.ReturnsByRef) sb.Append("ref ");

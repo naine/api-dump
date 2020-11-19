@@ -34,8 +34,6 @@ namespace ApiDump
             bool isInitAccessor = isSetter && accessor.IsInitOnly;
             if (inMutableStruct && !isInitAccessor && accessor.IsReadOnly)
             {
-                // TODO: If all non-init accessors are readonly, the keyword
-                // should be displayed on the property, not the accessors.
                 sb.Append("readonly ");
             }
             return sb.Append(isInitAccessor ? "init" : (isSetter ? "set" : "get")).Append("; ");
