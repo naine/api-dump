@@ -554,7 +554,7 @@ namespace ApiDump
                 }
                 else
                 {
-                    sb.AppendType(field.Type, field.NullableAnnotation);
+                    sb.AppendType(field.Type);
                 }
                 sb.Append(' ').Append(field.Name);
                 if (isFixed)
@@ -593,8 +593,7 @@ namespace ApiDump
                         break;
                     }
                 }
-                sb.Append("event ").AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation)
-                    .Append(' ').Append(eventSymbol.Name);
+                sb.Append("event ").AppendType(eventSymbol.Type).Append(' ').Append(eventSymbol.Name);
                 if (showAccessors)
                 {
                     sb.Append(" { ");
@@ -624,8 +623,7 @@ namespace ApiDump
                     if (method.MethodKind == MethodKind.Conversion
                         && conversionNames.TryGetValue(method.Name, out var keyword))
                     {
-                        sb.Append(keyword).Append(" operator ")
-                            .AppendType(method.ReturnType, method.ReturnNullableAnnotation);
+                        sb.Append(keyword).Append(" operator ").AppendType(method.ReturnType);
                     }
                     else
                     {
@@ -653,7 +651,7 @@ namespace ApiDump
                 sb.AppendCommonModifiers(property, false);
                 if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
                 else if (property.ReturnsByRef) sb.Append("ref ");
-                sb.AppendType(property.Type, property.NullableAnnotation).Append(' ');
+                sb.AppendType(property.Type).Append(' ');
                 if (property.IsIndexer)
                 {
                     sb.Append("this").AppendParameters(property.Parameters, false, '[', ']');
@@ -694,8 +692,7 @@ namespace ApiDump
             var sb = new StringBuilder().AppendCommonModifiers(property, true);
             if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
             else if (property.ReturnsByRef) sb.Append("ref ");
-            sb.AppendType(property.Type, property.NullableAnnotation).Append(' ')
-                .AppendType(implemented.ContainingType).Append('.');
+            sb.AppendType(property.Type).Append(' ').AppendType(implemented.ContainingType).Append('.');
             if (property.IsIndexer)
             {
                 sb.Append("this").AppendParameters(property.Parameters, false, '[', ']');
@@ -720,9 +717,8 @@ namespace ApiDump
             IEventSymbol eventSymbol, IEventSymbol implemented, int indent)
         {
             PrintLine(new StringBuilder().AppendCommonModifiers(eventSymbol, true).Append("event ")
-                .AppendType(eventSymbol.Type, eventSymbol.NullableAnnotation).Append(' ')
-                .AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
-                .Append(';').ToString(), indent);
+                .AppendType(eventSymbol.Type).Append(' ').AppendType(implemented.ContainingType)
+                .Append('.').Append(implemented.Name).Append(';').ToString(), indent);
         }
 
         // TODO: Generalise this attribute handling code.

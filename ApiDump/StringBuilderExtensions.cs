@@ -78,20 +78,20 @@ namespace ApiDump
             case INamedTypeSymbol namedType:
                 if (keywordTypes.TryGetValue(namedType.SpecialType, out var keyword))
                 {
-                    return sb.Append(keyword);
+                    sb.Append(keyword);
                 }
-                if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+                else if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
                 {
                     return sb.AppendType(namedType.TypeArguments[0]).Append('?');
                 }
-                if (namedType.IsTupleType && namedType.TupleElements.Length > 1)
+                else if (namedType.IsTupleType && namedType.TupleElements.Length > 1)
                 {
                     sb.Append('(');
                     for (int i = 0; i < namedType.TupleElements.Length; ++i)
                     {
                         if (i != 0) sb.Append(", ");
                         var element = namedType.TupleElements[i];
-                        sb.AppendType(element.Type, element.NullableAnnotation);
+                        sb.AppendType(element.Type);
                         if (!SymbolEqualityComparer.Default.Equals(element, element.CorrespondingTupleField))
                         {
                             sb.Append(' ').Append(element.Name);
@@ -99,32 +99,34 @@ namespace ApiDump
                     }
                     return sb.Append(')');
                 }
-                sb.Append(namedType.Name);
-                var typeArguments = namedType.TypeArguments;
-                if (typeArguments.IsDefaultOrEmpty) return sb;
-                var nullabilities = namedType.TypeArgumentNullableAnnotations;
-                if (nullabilities.Length != typeArguments.Length)
+                else
                 {
-                    throw new($"TypeArgumentNullableAnnotations.Length ({nullabilities.Length})"
-                        + $" != TypeArguments.Length ({typeArguments.Length})");
+                    sb.Append(namedType.Name);
+                    var typeArguments = namedType.TypeArguments;
+                    if (!typeArguments.IsDefaultOrEmpty)
+                    {
+                        sb.Append('<');
+                        for (int i = 0; i < typeArguments.Length; ++i)
+                        {
+                            if (i != 0) sb.Append(", ");
+                            sb.AppendType(typeArguments[i]);
+                        }
+                        sb.Append('>');
+                    }
                 }
-                sb.Append('<');
-                for (int i = 0; i < typeArguments.Length; ++i)
-                {
-                    if (i != 0) sb.Append(", ");
-                    sb.AppendType(typeArguments[i], nullabilities[i]);
-                }
-                return sb.Append('>');
+                break;
             case IPointerTypeSymbol pointerType:
                 return sb.AppendType(pointerType.PointedAtType).Append('*');
             case IArrayTypeSymbol arrayType:
-                sb.AppendType(arrayType.ElementType, arrayType.ElementNullableAnnotation).Append('[');
+                sb.AppendType(arrayType.ElementType).Append('[');
                 if (!arrayType.IsSZArray)
                 {
-                    if (arrayType.Rank < 2) sb.Append('*');
-                    else for (int i = 1; i < arrayType.Rank; ++i) sb.Append(',');
+                    int rank = arrayType.Rank;
+                    if (rank < 2) sb.Append('*');
+                    else for (int i = 1; i < rank; ++i) sb.Append(',');
                 }
-                return sb.Append(']');
+                sb.Append(']');
+                break;
             case IFunctionPointerTypeSymbol fnptrType:
                 sb.Append("delegate*");
                 var fnSig = fnptrType.Signature;
@@ -163,22 +165,16 @@ namespace ApiDump
                 sb.AppendParameters(fnSig.Parameters, false, '<', null);
                 if (fnSig.Parameters.Length != 0) sb.Append(", ");
                 return sb.AppendReturnSignature(fnSig).Append('>');
+            default:
+                sb.Append(type.TypeKind switch
+                {
+                    TypeKind.Dynamic => "dynamic",
+                    TypeKind.TypeParameter => type.Name,
+                    _ => throw new($"Type {type} has unexpected kind {type.TypeKind}"),
+                });
+                break;
             }
-            return sb.Append(type.TypeKind switch
-            {
-                TypeKind.Dynamic => "dynamic",
-                TypeKind.TypeParameter => type.Name,
-                _ => throw new($"Type {type} has unexpected kind {type.TypeKind}"),
-            });
-        }
-
-        // TODO: See if this is still needed now that
-        // NullableAnnotation is a member of ITypeSymbol.
-        public static StringBuilder AppendType(this StringBuilder sb,
-            ITypeSymbol type, NullableAnnotation nullability)
-        {
-            sb.AppendType(type);
-            if (nullability == NullableAnnotation.Annotated
+            if (type.NullableAnnotation == NullableAnnotation.Annotated
                 && Program.ShowNullable && !type.IsValueType)
             {
                 sb.Append('?');
@@ -196,7 +192,7 @@ namespace ApiDump
                 RefKind.RefReadOnly => "ref readonly ",
                 RefKind.None => "",
                 _ => throw new($"Invalid ref kind for return: {method.RefKind}"),
-            }).AppendType(method.ReturnType, method.ReturnNullableAnnotation);
+            }).AppendType(method.ReturnType);
         }
 
         public static StringBuilder AppendParameters(this StringBuilder sb,
@@ -217,7 +213,7 @@ namespace ApiDump
                     RefKind.In => "in ",
                     RefKind.None => "",
                     _ => throw new($"Invalid ref kind for parameter: {p.RefKind}"),
-                }).AppendType(p.Type, p.NullableAnnotation);
+                }).AppendType(p.Type);
                 if (!string.IsNullOrEmpty(p.Name)) sb.Append(' ').Append(p.Name);
                 if (p.HasExplicitDefaultValue)
                 {
@@ -430,16 +426,9 @@ namespace ApiDump
                     var constraintTypes = param.ConstraintTypes;
                     if (!constraintTypes.IsDefaultOrEmpty)
                     {
-                        var nullabilities = param.ConstraintNullableAnnotations;
-                        if (nullabilities.Length != constraintTypes.Length)
-                        {
-                            throw new($"ConstraintNullableAnnotations.Length ({nullabilities.Length})"
-                                + $" != ConstraintTypes.Length ({constraintTypes.Length})");
-                        }
                         for (int j = 0; j < constraintTypes.Length; ++j)
                         {
-                            constraint.Add(new StringBuilder()
-                                .AppendType(constraintTypes[j], nullabilities[j]).ToString());
+                            constraint.Add(new StringBuilder().AppendType(constraintTypes[j]).ToString());
                         }
                     }
                     if (param.HasConstructorConstraint)
