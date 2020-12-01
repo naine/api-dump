@@ -159,6 +159,28 @@ namespace TestAssembly
         public static delegate* unmanaged[Fastcall]<int, nuint, int> UFastcallFunc2;
     }
 
+#if NET5_0
+    public static class UnmanagedFuncs
+    {
+        public static int FuncManaged(nuint x, nuint y) => (int)(x + y);
+
+        [UnmanagedCallersOnly()]
+        public static int FuncUnmanaged(nuint x, nuint y) => (int)(x + y);
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        public static int FuncCdecl(nuint x, nuint y) => (int)(x + y);
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvStdcall) })]
+        public static int FuncStdcall(nuint x, nuint y) => (int)(x + y);
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvThiscall) })]
+        public static int FuncThiscall(nuint x, nuint y) => (int)(x + y);
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvFastcall) })]
+        public static int FuncFastcall(nuint x, nuint y) => (int)(x + y);
+    }
+#endif
+
     public abstract class AbstractClass : IEnumerable
     {
         public abstract IEnumerator GetEnumerator();
