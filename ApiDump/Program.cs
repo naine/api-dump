@@ -31,7 +31,7 @@ namespace ApiDump
      *      ~ Allow specifying default for unknown attributes.
      *  - C# 9 features:
      *    + Unmanaged calling convention methods.
-     *    + Records (see if they can be distinguished from equivalent classes).
+     *    + Records (distinguished from classes with ITypeSymbol.IsRecord).
      */
 
     static class Program
