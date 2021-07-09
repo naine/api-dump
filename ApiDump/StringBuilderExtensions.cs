@@ -264,8 +264,12 @@ namespace ApiDump
                 _ => throw new($"Enum value has invalid type: {value.GetType()}"),
             };
 
+#pragma warning disable RS1024 // False-positive: https://github.com/dotnet/roslyn-analyzers/issues/4568
+
         private static readonly Dictionary<INamedTypeSymbol,
             (bool IsFlags, Dictionary<ulong, string> Values)> enumCache = new(SymbolEqualityComparer.Default);
+
+#pragma warning restore RS1024
 
         private static StringBuilder AppendEnumValue(this StringBuilder sb, object value, INamedTypeSymbol type)
         {
