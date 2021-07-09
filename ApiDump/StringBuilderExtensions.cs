@@ -221,6 +221,7 @@ namespace ApiDump
             if (close.HasValue) sb.Append(close.GetValueOrDefault());
             return sb;
         }
+
         private static StringBuilder AppendChar(this StringBuilder sb, int c)
         {
             const string escapes = "0\0\0\0\0\0\0abtnvfr";

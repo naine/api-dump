@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Text;
 using Microsoft.CodeAnalysis;
 
 namespace ApiDump
@@ -16,7 +17,8 @@ namespace ApiDump
 
         public int Compare(ISymbol? x, ISymbol? y)
         {
-            if (x is null) return y is null ? 0 : -1;
+            if (ReferenceEquals(x, y)) return 0;
+            if (x is null) return -1;
             if (y is null) return 1;
             int c;
             // Special case enum values, sort by value over name.
@@ -51,7 +53,43 @@ namespace ApiDump
             for (int i = 0; i < xp.Length; ++i)
             {
                 if ((c = ((byte)xp[i].RefKind).CompareTo((byte)yp[i].RefKind)) != 0) return c;
-                if ((c = xp[i].Type.ToDisplayString().CompareTo(yp[i].Type.ToDisplayString())) != 0) return c;
+                if ((c = CompareParameterTypes(xp[i].Type, yp[i].Type)) != 0) return c;
+            }
+            return 0;
+        }
+
+        private int CompareParameterTypes(ITypeSymbol x, ITypeSymbol y)
+        {
+            if (ReferenceEquals(x, y)) return 0;
+            if (x is null) return -1;
+            if (y is null) return 1;
+            int c;
+            if ((c = x.TypeKind.CompareTo(y.TypeKind)) != 0) return c;
+            if ((c = x.Kind.CompareTo(y.Kind)) != 0) return c;
+            if ((c = (!x.CanBeReferencedByName).CompareTo(!y.CanBeReferencedByName)) != 0) return c;
+            if ((c = x.Name.CompareTo(y.Name)) != 0) return c;
+            if ((c = GetArity(x).CompareTo(GetArity(y))) != 0) return c;
+            switch (x)
+            {
+            case INamedTypeSymbol ntx when ntx.Arity != 0 && y is INamedTypeSymbol nty:
+                var tax = ntx.TypeArguments;
+                var tay = nty.TypeArguments;
+                if ((c = tax.Length.CompareTo(tay.Length)) != 0) return c;
+                for (int i = 0; i < tax.Length; ++i)
+                {
+                    if ((c = CompareParameterTypes(tax[i], tay[i])) != 0) return c;
+                }
+                break;
+            case IArrayTypeSymbol atx when y is IArrayTypeSymbol aty:
+                if ((c = CompareParameterTypes(atx.ElementType, aty.ElementType)) != 0) return c;
+                if ((c = atx.Rank.CompareTo(aty.Rank)) != 0) return c;
+                break;
+            case IPointerTypeSymbol ptx when y is IPointerTypeSymbol pty:
+                if ((c = CompareParameterTypes(ptx.PointedAtType, pty.PointedAtType)) != 0) return c;
+                break;
+            case IFunctionPointerTypeSymbol fpx when y is IFunctionPointerTypeSymbol fpy:
+                if ((c = Compare(fpx.Signature, fpx.Signature)) != 0) return c;
+                break;
             }
             return 0;
         }
