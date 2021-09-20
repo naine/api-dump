@@ -2,7 +2,8 @@
   <Import Project="..\Directory.Build.props" />
   <PropertyGroup>
     <TargetFramework>net5.0</TargetFramework>
-    <NoWarn>CS0169;CS8597;CS8618;CS8625;CS8777;IDE0044;IDE0051;IDE0060;CA1822;$(NoWarn)</NoWarn>
+    <AnalysisMode>Default</AnalysisMode>
+    <NoWarn>CS0169;CS8597;CS8618;CS8625;CS8777;IDE0044;IDE0051;IDE0060;$(NoWarn)</NoWarn>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     <SignAssembly>true</SignAssembly>
     <PublicSign>true</PublicSign>

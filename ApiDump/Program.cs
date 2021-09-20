@@ -170,7 +170,10 @@ namespace ApiDump
                 attribute?.InformationalVersion ?? assembly.GetName().Version!.ToString(3));
 
             var copyright = assembly.GetCustomAttribute<AssemblyCopyrightAttribute>();
-            if (copyright is not null) Console.WriteLine(copyright.Copyright.Replace("\u00A9", "(C)"));
+            if (copyright is not null)
+            {
+                Console.WriteLine(copyright.Copyright.Replace("\u00A9", "(C)", StringComparison.Ordinal));
+            }
         }
 
         public static bool StartsWith(this ReadOnlySpan<char> span, char value)
@@ -215,9 +218,9 @@ namespace ApiDump
                     // Option line, eg: "- `-h`, `--help`"
                     Console.WriteLine();
                     Console.Write("  ");
-                    Console.Out.WriteLine(para.AsSpan(1 + para.IndexOf('-')).Trim());
+                    Console.Out.WriteLine(para.AsSpan(1 + para.IndexOf('-', StringComparison.Ordinal)).Trim());
                 }
-                else if (!para.Contains('\n'))
+                else if (!para.Contains('\n', StringComparison.Ordinal))
                 {
                     // Single-line option description
                     Console.WriteLine();

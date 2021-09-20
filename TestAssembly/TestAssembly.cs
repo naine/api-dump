@@ -122,7 +122,7 @@ namespace TestAssembly
         public static delegate* managed<int> MFuncExplicit;
         public static delegate*<int, int> MFunc1;
         public static delegate*<int, nuint, int> MFunc2;
-#if NET5_0
+#if NET5_0_OR_GREATER
         public static delegate* unmanaged<void> UDefAction;
         public static delegate* unmanaged<int, void> UDefAction1;
         public static delegate* unmanaged<int, nuint, void> UDefAction2;
@@ -159,7 +159,7 @@ namespace TestAssembly
         public static delegate* unmanaged[Fastcall]<int, nuint, int> UFastcallFunc2;
     }
 
-#if NET5_0
+#if NET5_0_OR_GREATER
     public static class UnmanagedFuncs
     {
         public static int FuncManaged(nuint x, nuint y) => (int)(x + y);
@@ -208,7 +208,7 @@ namespace TestAssembly
         public override ref int Foo2(in decimal x) => throw new NotImplementedException();
         public sealed override ref readonly object Foo3(ref string x) => throw new NotImplementedException();
         public override dynamic Foo4(out (int a, double b) x) => throw new NotImplementedException();
-#if NET5_0
+#if NET5_0_OR_GREATER
         public override ConcreteClass CovReturn() => throw new NotImplementedException();
 #endif
     }
@@ -241,7 +241,7 @@ namespace TestAssembly
             get => throw new NotImplementedException();
             set => throw new NotImplementedException();
         }
-#if NET5_0
+#if NET5_0_OR_GREATER
         public int InitProp1
         {
             get => throw new NotImplementedException();
@@ -297,7 +297,7 @@ namespace TestAssembly
         int Prop2 { get; set; }
         ref int Prop3 { get; }
         ref readonly int Prop4 { get; }
-#if NET5_0
+#if NET5_0_OR_GREATER
         int Prop5 { get; init; }
         int Prop6 { get; init; }
 #endif
@@ -330,7 +330,7 @@ namespace TestAssembly
         }
         public ref int Prop3 => throw new NotImplementedException();
         public ref readonly int Prop4 => throw new NotImplementedException();
-#if NET5_0
+#if NET5_0_OR_GREATER
         public int Prop5
         {
             get => throw new NotImplementedException();

@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApiDump", "ApiDump\ApiDump.csproj", "{63A46FD9-8299-4489-9355-5D940978564E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "DummyBCL", "DummyBCL", "{AB506438-44F3-47F0-B632-5DA5935AF9C5}"
+	ProjectSection(SolutionItems) = preProject
+		DummyBCL\Directory.Build.props = DummyBCL\Directory.Build.props
+	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "System.Runtime", "DummyBCL\System.Runtime\System.Runtime.csproj", "{22077AAA-1278-4884-9BA1-64423A289FC9}"
 EndProject

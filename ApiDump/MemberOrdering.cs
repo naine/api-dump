@@ -39,13 +39,13 @@ namespace ApiDump
                     nint xv when yf.ConstantValue is nint yv => xv.CompareTo(yv),
                     nuint xv when yf.ConstantValue is nuint yv => xv.CompareTo(yv),
                     _ => 0,
-                }) != 0 ? c : x.Name.CompareTo(y.Name);
+                }) != 0 ? c : string.CompareOrdinal(x.Name, y.Name);
             }
             if ((c = KindOrdering(x).CompareTo(KindOrdering(y))) != 0) return c;
             if (x.Kind != SymbolKind.NamedType && (c = (!x.IsStatic).CompareTo(!y.IsStatic)) != 0) return c;
             if ((c = (!x.CanBeReferencedByName).CompareTo(!y.CanBeReferencedByName)) != 0) return c;
             if ((c = ((int)y.DeclaredAccessibility).CompareTo((int)x.DeclaredAccessibility)) != 0) return c;
-            if ((c = x.Name.CompareTo(y.Name)) != 0) return c;
+            if ((c = string.CompareOrdinal(x.Name, y.Name)) != 0) return c;
             if ((c = GetArity(x).CompareTo(GetArity(y))) != 0) return c;
             var xp = GetParameters(x);
             var yp = GetParameters(y);
@@ -64,10 +64,10 @@ namespace ApiDump
             if (x is null) return -1;
             if (y is null) return 1;
             int c;
-            if ((c = x.TypeKind.CompareTo(y.TypeKind)) != 0) return c;
-            if ((c = x.Kind.CompareTo(y.Kind)) != 0) return c;
+            if ((c = ((byte)x.TypeKind).CompareTo((byte)y.TypeKind)) != 0) return c;
+            if ((c = ((int)x.Kind).CompareTo((int)y.Kind)) != 0) return c;
             if ((c = (!x.CanBeReferencedByName).CompareTo(!y.CanBeReferencedByName)) != 0) return c;
-            if ((c = x.Name.CompareTo(y.Name)) != 0) return c;
+            if ((c = string.CompareOrdinal(x.Name, y.Name)) != 0) return c;
             if ((c = GetArity(x).CompareTo(GetArity(y))) != 0) return c;
             switch (x)
             {
