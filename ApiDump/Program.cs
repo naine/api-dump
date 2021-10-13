@@ -302,7 +302,7 @@ namespace ApiDump
                 {
                     if (!printed && !ns.IsGlobalNamespace)
                     {
-                        PrintLine($"namespace {FullName(ns)}", 0);
+                        PrintLine(AppendName(new StringBuilder("namespace ", 64), ns).ToString(), 0);
                         PrintLine("{", 0);
                         printed = true;
                     }
@@ -314,13 +314,16 @@ namespace ApiDump
             {
                 PrintNamespace(subNs);
             }
-        }
 
-        public static string? FullName(this INamespaceSymbol? ns)
-        {
-            if (ns is null || ns.IsGlobalNamespace) return null;
-            string? parent = FullName(ns.ContainingNamespace);
-            return parent is null ? ns.Name : $"{parent}.{ns.Name}";
+            static StringBuilder AppendName(StringBuilder sb, INamespaceSymbol ns)
+            {
+                var parent = ns.ContainingNamespace;
+                if (parent is not null && !parent.IsGlobalNamespace)
+                {
+                    AppendName(sb, parent).Append('.');
+                }
+                return sb.Append(ns.Name);
+            }
         }
 
         private static void PrintType(INamedTypeSymbol type, int indent)
@@ -741,13 +744,28 @@ namespace ApiDump
 
         // TODO: Generalise this attribute handling code.
 
+        private static bool IsSystem(INamespaceSymbol? ns)
+        {
+            if (ns is null || ns.IsGlobalNamespace || ns.Name != "System") return false;
+            ns = ns.ContainingNamespace;
+            return ns is null || ns.IsGlobalNamespace;
+        }
+
+        public static bool IsCompilerServices(INamespaceSymbol? ns)
+        {
+            if (ns is null || ns.IsGlobalNamespace || ns.Name != "CompilerServices") return false;
+            ns = ns.ContainingNamespace;
+            if (ns is null || ns.IsGlobalNamespace || ns.Name != "Runtime") return false;
+            return IsSystem(ns.ContainingNamespace);
+        }
+
         public static bool IsUnsafeValueType(this INamedTypeSymbol structType)
         {
             foreach (var attr in structType.GetAttributes())
             {
                 var type = attr.AttributeClass;
                 if (type is not null && type.Name == "UnsafeValueTypeAttribute"
-                    && FullName(type.ContainingNamespace) == "System.Runtime.CompilerServices"
+                    && IsCompilerServices(type.ContainingNamespace)
                     && type.Arity == 0 && type.ContainingType is null)
                 {
                     return true;
@@ -762,7 +780,7 @@ namespace ApiDump
             {
                 var type = attr.AttributeClass;
                 if (type is not null && type.Name == "FlagsAttribute"
-                    && FullName(type.ContainingNamespace) == "System"
+                    && IsSystem(type.ContainingNamespace)
                     && type.Arity == 0 && type.ContainingType is null)
                 {
                     return true;
@@ -777,7 +795,7 @@ namespace ApiDump
             {
                 var type = attr.AttributeClass;
                 if (type is null || type.Name != "FixedBufferAttribute"
-                    || FullName(type.ContainingNamespace) != "System.Runtime.CompilerServices"
+                    || !IsCompilerServices(type.ContainingNamespace)
                     || type.Arity != 0 || type.ContainingType is not null) continue;
                 var args = attr.ConstructorArguments;
                 if (args.IsDefault || args.Length != 2 || args[0].Kind != TypedConstantKind.Type) continue;

@@ -142,7 +142,7 @@ namespace ApiDump
                             string modName = ccModType.Name;
                             sb.Append(modName.Length > 8
                                 && modName.StartsWith("CallConv", StringComparison.Ordinal)
-                                && ccModType.ContainingNamespace?.FullName() == "System.Runtime.CompilerServices"
+                                && Program.IsCompilerServices(ccModType.ContainingNamespace)
                                 ? modName.AsSpan()[8..] : modName);
                         }
                         sb.Append(']');
