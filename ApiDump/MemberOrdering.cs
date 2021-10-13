@@ -4,7 +4,6 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Text;
 using Microsoft.CodeAnalysis;
 
 namespace ApiDump
@@ -88,7 +87,7 @@ namespace ApiDump
                 if ((c = CompareParameterTypes(ptx.PointedAtType, pty.PointedAtType)) != 0) return c;
                 break;
             case IFunctionPointerTypeSymbol fpx when y is IFunctionPointerTypeSymbol fpy:
-                if ((c = Compare(fpx.Signature, fpx.Signature)) != 0) return c;
+                if ((c = Compare(fpx.Signature, fpy.Signature)) != 0) return c;
                 break;
             }
             return 0;
