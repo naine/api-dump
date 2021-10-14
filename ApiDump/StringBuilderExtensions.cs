@@ -464,9 +464,9 @@ namespace ApiDump
 
         public static void AppendTypeParameters(this StringBuilder sb,
             ImmutableArray<ITypeParameterSymbol> tParams,
-            out List<(string TParamName, List<string> Constraint)>? constraints)
+            out FList<(string TParamName, FList<string> Constraint)> constraints)
         {
-            constraints = null;
+            constraints = default;
             if (tParams.Length != 0)
             {
                 sb.Append('<');
@@ -483,7 +483,7 @@ namespace ApiDump
                         _ => throw new($"Invalid variance kind: {param.Variance}"),
                     });
                     sb.Append(name);
-                    var constraint = new List<string>();
+                    FList<string> constraint = default;
                     if (param.HasUnmanagedTypeConstraint)
                     {
                         constraint.Add("unmanaged");
@@ -518,7 +518,6 @@ namespace ApiDump
                     }
                     if (constraint.Count != 0)
                     {
-                        constraints ??= new();
                         constraints.Add((name, constraint));
                     }
                 }
@@ -527,20 +526,17 @@ namespace ApiDump
         }
 
         public static void AppendTypeConstraints(this StringBuilder sb,
-            List<(string, List<string>)>? constraints)
+            in FList<(string, FList<string>)> constraints)
         {
-            if (constraints is not null)
+            foreach ((string param, var constraint) in constraints)
             {
-                foreach ((string param, var constraint) in constraints)
+                sb.Append(" where ");
+                sb.Append(param);
+                sb.Append(" : ");
+                for (int i = 0; i < constraint.Count; ++i)
                 {
-                    sb.Append(" where ");
-                    sb.Append(param);
-                    sb.Append(" : ");
-                    for (int i = 0; i < constraint.Count; ++i)
-                    {
-                        if (i != 0) sb.Append(", ");
-                        sb.Append(constraint[i]);
-                    }
+                    if (i != 0) sb.Append(", ");
+                    sb.Append(constraint[i]);
                 }
             }
         }

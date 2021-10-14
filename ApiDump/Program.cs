@@ -46,7 +46,7 @@ namespace ApiDump
 
         static int Main(string[] args)
         {
-            var dlls = new List<string>(args.Length);
+            var dlls = new FList<string>(args.Length);
             bool useInternalBCL = true;
             foreach (string arg in args)
             {
@@ -92,7 +92,7 @@ namespace ApiDump
             }
             try
             {
-                var refs = new List<MetadataReference>(4 + dlls.Count);
+                var refs = new FList<MetadataReference>(4 + dlls.Count);
                 foreach (string path in dlls)
                 {
                     try
@@ -410,7 +410,7 @@ namespace ApiDump
                 throw new($"Named type {type} has unexpected kind {kind}");
             }
             sb.AppendTypeParameters(type.TypeParameters, out var constraints);
-            var bases = new List<INamedTypeSymbol>();
+            FList<INamedTypeSymbol> bases = default;
             if (kind == TypeKind.Class)
             {
                 var baseType = type.BaseType;
@@ -433,7 +433,23 @@ namespace ApiDump
                     }
                     // Remove any previously added interfaces inherited by the one we're adding now.
                     var inherited = iface.Interfaces;
-                    bases.RemoveAll(t => inherited.Contains(t, SymbolEqualityComparer.Default));
+                    for (int firstToRemove = 0; firstToRemove < bases.Count; ++firstToRemove)
+                    {
+                        if (inherited.Contains(bases[firstToRemove], SymbolEqualityComparer.Default))
+                        {
+                            int pos = firstToRemove;
+                            while (++pos < bases.Count)
+                            {
+                                var current = bases[pos];
+                                if (!inherited.Contains(current, SymbolEqualityComparer.Default))
+                                {
+                                    bases[firstToRemove++] = current;
+                                }
+                            }
+                            bases.TrimEnd(firstToRemove);
+                            break;
+                        }
+                    }
                 }
                 bases.Add(iface);
             }
