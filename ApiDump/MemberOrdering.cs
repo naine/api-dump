@@ -25,18 +25,19 @@ namespace ApiDump
                 y.ContainingType?.TypeKind == TypeKind.Enum &&
                 x is IFieldSymbol xf && y is IFieldSymbol yf)
             {
+                object? yValue = yf.ConstantValue;
                 return (c = xf.ConstantValue switch
                 {
-                    int xv when yf.ConstantValue is int yv => xv.CompareTo(yv),
-                    byte xv when yf.ConstantValue is byte yv => xv.CompareTo(yv),
-                    uint xv when yf.ConstantValue is uint yv => xv.CompareTo(yv),
-                    sbyte xv when yf.ConstantValue is sbyte yv => xv.CompareTo(yv),
-                    short xv when yf.ConstantValue is short yv => xv.CompareTo(yv),
-                    ushort xv when yf.ConstantValue is ushort yv => xv.CompareTo(yv),
-                    long xv when yf.ConstantValue is long yv => xv.CompareTo(yv),
-                    ulong xv when yf.ConstantValue is ulong yv => xv.CompareTo(yv),
-                    nint xv when yf.ConstantValue is nint yv => xv.CompareTo(yv),
-                    nuint xv when yf.ConstantValue is nuint yv => xv.CompareTo(yv),
+                    int xv when yValue is int yv => xv.CompareTo(yv),
+                    byte xv when yValue is byte yv => xv.CompareTo(yv),
+                    uint xv when yValue is uint yv => xv.CompareTo(yv),
+                    sbyte xv when yValue is sbyte yv => xv.CompareTo(yv),
+                    short xv when yValue is short yv => xv.CompareTo(yv),
+                    ushort xv when yValue is ushort yv => xv.CompareTo(yv),
+                    long xv when yValue is long yv => xv.CompareTo(yv),
+                    ulong xv when yValue is ulong yv => xv.CompareTo(yv),
+                    nint xv when yValue is nint yv => xv.CompareTo(yv),
+                    nuint xv when yValue is nuint yv => xv.CompareTo(yv),
                     _ => 0,
                 }) != 0 ? c : string.CompareOrdinal(x.Name, y.Name);
             }

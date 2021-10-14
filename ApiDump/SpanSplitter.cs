@@ -3,6 +3,9 @@
 // for full license information.
 
 using System;
+using System.ComponentModel;
+
+#pragma warning disable IDE0057 // Single-argument Slice() is more efficient than s[x..]
 
 namespace ApiDump
 {
@@ -18,6 +21,7 @@ namespace ApiDump
             Current = default;
         }
 
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public readonly SpanSplitter GetEnumerator()
             => this;
 
@@ -32,11 +36,11 @@ namespace ApiDump
                         if (char.IsWhiteSpace(remaining[end]))
                         {
                             Current = remaining[start..end];
-                            remaining = remaining[(end + 1)..];
+                            remaining = remaining.Slice(end + 1);
                             return true;
                         }
                     }
-                    Current = remaining[start..];
+                    Current = remaining.Slice(start);
                     remaining = default;
                     return true;
                 }

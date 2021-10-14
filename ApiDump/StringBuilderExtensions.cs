@@ -74,6 +74,7 @@ namespace ApiDump
             switch (type)
             {
             case INamedTypeSymbol namedType:
+                ImmutableArray<IFieldSymbol> tupleElements;
                 if (keywordTypes.TryGetValue(namedType.SpecialType, out var keyword))
                 {
                     sb.Append(keyword);
@@ -82,13 +83,13 @@ namespace ApiDump
                 {
                     return sb.AppendType(namedType.TypeArguments[0]).Append('?');
                 }
-                else if (namedType.IsTupleType && namedType.TupleElements.Length > 1)
+                else if (namedType.IsTupleType && (tupleElements = namedType.TupleElements).Length > 1)
                 {
                     sb.Append('(');
-                    for (int i = 0; i < namedType.TupleElements.Length; ++i)
+                    for (int i = 0; i < tupleElements.Length; ++i)
                     {
                         if (i != 0) sb.Append(", ");
-                        var element = namedType.TupleElements[i];
+                        var element = tupleElements[i];
                         sb.AppendType(element.Type);
                         if (!SymbolEqualityComparer.Default.Equals(element, element.CorrespondingTupleField))
                         {
@@ -128,7 +129,8 @@ namespace ApiDump
             case IFunctionPointerTypeSymbol fnptrType:
                 sb.Append("delegate*");
                 var fnSig = fnptrType.Signature;
-                if (fnSig.CallingConvention == SignatureCallingConvention.Unmanaged)
+                var callConv = fnSig.CallingConvention;
+                if (callConv == SignatureCallingConvention.Unmanaged)
                 {
                     sb.Append(" unmanaged");
                     var ccMods = fnSig.UnmanagedCallingConventionTypes;
@@ -143,25 +145,26 @@ namespace ApiDump
                             sb.Append(modName.Length > 8
                                 && modName.StartsWith("CallConv", StringComparison.Ordinal)
                                 && Program.IsCompilerServices(ccModType.ContainingNamespace)
-                                ? modName.AsSpan()[8..] : modName);
+                                ? modName.AsSpan(8) : modName);
                         }
                         sb.Append(']');
                     }
                 }
                 else
                 {
-                    sb.Append(fnSig.CallingConvention switch
+                    sb.Append(callConv switch
                     {
                         SignatureCallingConvention.Default => "",
                         SignatureCallingConvention.CDecl => " unmanaged[Cdecl]",
                         SignatureCallingConvention.StdCall => " unmanaged[Stdcall]",
                         SignatureCallingConvention.ThisCall => " unmanaged[Thiscall]",
                         SignatureCallingConvention.FastCall => " unmanaged[Fastcall]",
-                        _ => throw new($"Unknown calling convention {fnSig.CallingConvention}"),
+                        _ => throw new($"Unknown calling convention {callConv}"),
                     });
                 }
-                sb.AppendParameters(fnSig.Parameters, false, '<', null);
-                if (fnSig.Parameters.Length != 0) sb.Append(", ");
+                var fnParams = fnSig.Parameters;
+                sb.AppendParameters(fnParams, false, '<', null);
+                if (!fnParams.IsDefaultOrEmpty) sb.Append(", ");
                 return sb.AppendReturnSignature(fnSig).Append('>');
             default:
                 sb.Append(type.TypeKind switch
@@ -204,6 +207,7 @@ namespace ApiDump
                 var p = parameters[i];
                 if (isExtension && i == 0) sb.Append("this ");
                 else if (p.IsParams) sb.Append("params ");
+                var type = p.Type;
                 sb.Append(p.RefKind switch
                 {
                     RefKind.Ref => "ref ",
@@ -211,11 +215,12 @@ namespace ApiDump
                     RefKind.In => "in ",
                     RefKind.None => "",
                     _ => throw new($"Invalid ref kind for parameter: {p.RefKind}"),
-                }).AppendType(p.Type);
-                if (!string.IsNullOrEmpty(p.Name)) sb.Append(' ').Append(p.Name);
+                }).AppendType(type);
+                string name = p.Name;
+                if (!string.IsNullOrEmpty(name)) sb.Append(' ').Append(name);
                 if (p.HasExplicitDefaultValue)
                 {
-                    sb.Append(" = ").AppendConstant(p.ExplicitDefaultValue, p.Type);
+                    sb.Append(" = ").AppendConstant(p.ExplicitDefaultValue, type);
                 }
             }
             if (close.HasValue) sb.Append(close.GetValueOrDefault());
@@ -322,7 +327,8 @@ namespace ApiDump
             return sb.Append(value);
         }
 
-        public static StringBuilder AppendConstant(this StringBuilder sb, object? value, ITypeSymbol type)
+        // Note: type may be null ONLY when writing the underlying value of an enum member.
+        public static StringBuilder AppendConstant(this StringBuilder sb, object? value, ITypeSymbol? type)
         {
             if (value is string s)
             {
@@ -352,38 +358,46 @@ namespace ApiDump
             }
             else if (value is not null)
             {
-                return type.TypeKind == TypeKind.Enum
+                return type?.TypeKind == TypeKind.Enum
                     ? sb.AppendEnumValue(value, (INamedTypeSymbol)type) : sb.Append(value);
             }
-            else if (type.TypeKind == TypeKind.Pointer || type.TypeKind == TypeKind.FunctionPointer)
-            {
-                return sb.Append("null");
-            }
-            else if (type.TypeKind == TypeKind.Enum || type.IsNativeIntegerType)
+            else if (type is null)
             {
                 return sb.Append('0');
             }
-            else if (type.IsReferenceType)
+            else
             {
-                // If a named type is not known to the compilation, Roslyn seems
-                // to assume that it's a class and returns true on IsReferenceType,
-                // but this may not be correct, so we use "default" for this case.
-                return sb.Append(type.TypeKind == TypeKind.Error ? "default" : "null");
-            }
-            else if (type is INamedTypeSymbol namedType)
-            {
-                switch (namedType.OriginalDefinition.SpecialType)
+                var typeKind = type.TypeKind;
+                if (typeKind == TypeKind.Pointer || typeKind == TypeKind.FunctionPointer)
                 {
-                case SpecialType.System_Boolean:
-                    return sb.Append("false");
-                case SpecialType.System_Char:
-                    return sb.Append("'\\0'");
-                case SpecialType.System_Nullable_T:
                     return sb.Append("null");
-                case >= SpecialType.System_SByte and <= SpecialType.System_UIntPtr:
-                    // This range includes string, but if a symbol identifies as string
-                    // then the reference type path above will have already been taken.
+                }
+                else if (typeKind == TypeKind.Enum || type.IsNativeIntegerType)
+                {
                     return sb.Append('0');
+                }
+                else if (type.IsReferenceType)
+                {
+                    // If a named type is not known to the compilation, Roslyn seems
+                    // to assume that it's a class and returns true on IsReferenceType,
+                    // but this may not be correct, so we use "default" for this case.
+                    return sb.Append(typeKind == TypeKind.Error ? "default" : "null");
+                }
+                else if (type is INamedTypeSymbol namedType)
+                {
+                    switch (namedType.OriginalDefinition.SpecialType)
+                    {
+                    case SpecialType.System_Boolean:
+                        return sb.Append("false");
+                    case SpecialType.System_Char:
+                        return sb.Append("'\\0'");
+                    case SpecialType.System_Nullable_T:
+                        return sb.Append("null");
+                    case >= SpecialType.System_SByte and <= SpecialType.System_UIntPtr:
+                        // This range includes string, but if a symbol identifies as string
+                        // then the reference type path above will have already been taken.
+                        return sb.Append('0');
+                    }
                 }
             }
             return sb.Append("default");
@@ -401,13 +415,14 @@ namespace ApiDump
                 {
                     if (i != 0) sb.Append(", ");
                     var param = tParams[i];
+                    string name = param.Name;
                     sb.Append(param.Variance switch
                     {
                         VarianceKind.In => "in ",
                         VarianceKind.Out => "out ",
                         VarianceKind.None => "",
                         _ => throw new($"Invalid variance kind: {param.Variance}"),
-                    }).Append(param.Name);
+                    }).Append(name);
                     var constraint = new List<string>();
                     if (param.HasUnmanagedTypeConstraint)
                     {
@@ -442,7 +457,7 @@ namespace ApiDump
                     if (constraint.Count != 0)
                     {
                         constraints ??= new();
-                        constraints.Add((param.Name, constraint));
+                        constraints.Add((name, constraint));
                     }
                 }
                 sb.Append('>');
@@ -488,8 +503,8 @@ namespace ApiDump
             else if (member.IsAbstract)
             {
                 // Abstract by default. See comment in PrintMember about public accessbility.
-                if (member.DeclaredAccessibility != Accessibility.NotApplicable
-                    && member.DeclaredAccessibility != Accessibility.Public)
+                if (member.DeclaredAccessibility is not Accessibility.NotApplicable
+                    and not Accessibility.Public)
                 {
                     sb.Append("abstract ");
                 }
