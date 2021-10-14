@@ -277,6 +277,7 @@ namespace ApiDump
             type = type.OriginalDefinition;
             if (!enumCache.TryGetValue(type, out var enumInfo))
             {
+                // TODO: In .NET 6 this can use CollectionsMarshal.GetValueRefOrAddDefault()
                 enumCache[type] = enumInfo = (type.IsFlagsEnum(), new());
                 foreach (var member in type.GetMembers())
                 {

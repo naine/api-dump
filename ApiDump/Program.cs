@@ -32,6 +32,10 @@ namespace ApiDump
      *  - C# 9 features:
      *    + Unmanaged calling convention methods.
      *    + Records (distinguished from classes with ITypeSymbol.IsRecord).
+     *  - C# 10 features:
+     *    + Record structs.
+     *    + Parameterless struct constructors.
+     *    + Reevaluate when 10.0 leaves preview.
      */
 
     static class Program
@@ -467,6 +471,9 @@ namespace ApiDump
                 case MethodKind.Constructor:
                     if (containingType.TypeKind == TypeKind.Struct && m.Parameters.IsDefaultOrEmpty)
                     {
+                        // TODO: This may no longer be correct under C# 10.
+                        // Need to distinguish between a real default ctor loaded from metadata,
+                        // and the dummy MethodSymbols created to support new() on all structs.
                         return;
                     }
                     break;
