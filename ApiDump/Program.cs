@@ -303,7 +303,9 @@ namespace ApiDump
                 {
                     if (!printed && !isGlobal)
                     {
-                        PrintLine(AppendName(new StringBuilder("namespace ", 64), ns).ToString(), 0);
+                        var sb = new StringBuilder("namespace ", 64);
+                        AppendName(sb, ns);
+                        PrintLine(sb.ToString(), 0);
                         PrintLine("{", 0);
                         printed = true;
                     }
@@ -316,14 +318,15 @@ namespace ApiDump
                 PrintNamespace(subNs);
             }
 
-            static StringBuilder AppendName(StringBuilder sb, INamespaceSymbol ns)
+            static void AppendName(StringBuilder sb, INamespaceSymbol ns)
             {
                 var parent = ns.ContainingNamespace;
                 if (parent is not null && !parent.IsGlobalNamespace)
                 {
-                    AppendName(sb, parent).Append('.');
+                    AppendName(sb, parent);
+                    sb.Append('.');
                 }
-                return sb.Append(ns.Name);
+                sb.Append(ns.Name);
             }
         }
 
@@ -349,32 +352,40 @@ namespace ApiDump
                 if (type.IsStatic) sb.Append("static ");
                 else if (type.IsAbstract) sb.Append("abstract ");
                 else if (type.IsSealed) sb.Append("sealed ");
-                sb.Append("class ").Append(type.Name);
+                sb.Append("class ");
+                sb.Append(type.Name);
                 break;
             case TypeKind.Struct:
                 if (!showUnsafeValueTypes && type.IsUnsafeValueType()) return;
                 if (type.IsReadOnly) sb.Append("readonly ");
                 if (type.IsRefLikeType) sb.Append("ref ");
-                sb.Append("struct ").Append(type.Name);
+                sb.Append("struct ");
+                sb.Append(type.Name);
                 break;
             case TypeKind.Interface:
-                sb.Append("interface ").Append(type.Name);
+                sb.Append("interface ");
+                sb.Append(type.Name);
                 break;
             case TypeKind.Enum:
-                sb.Append("enum ").Append(type.Name);
+                sb.Append("enum ");
+                sb.Append(type.Name);
                 var underlyingType = type.EnumUnderlyingType;
                 if (underlyingType is not null)
                 {
-                    sb.Append(" : ").AppendType(underlyingType);
+                    sb.Append(" : ");
+                    sb.AppendType(underlyingType);
                 }
                 PrintLine(sb.ToString(), indent, openBlock: true);
                 foreach (var member in Sort(type.GetMembers()))
                 {
                     if (member is IFieldSymbol field)
                     {
-                        PrintLine(new StringBuilder().Append(field.Name).Append(" = ")
-                            .AppendConstant(field.ConstantValue, underlyingType)
-                            .Append(',').ToString(), indent + 1);
+                        sb.Clear();
+                        sb.Append(field.Name);
+                        sb.Append(" = ");
+                        sb.AppendConstant(field.ConstantValue, underlyingType);
+                        sb.Append(',');
+                        PrintLine(sb.ToString(), indent + 1);
                     }
                 }
                 PrintEndBlock(indent);
@@ -385,13 +396,15 @@ namespace ApiDump
                 {
                     throw new($"Delegate type has null invoke method: {type}");
                 }
-                PrintLine(sb.Append("delegate ")
-                    .AppendReturnSignature(invokeMethod)
-                    .Append(' ').Append(type.Name)
-                    .AppendTypeParameters(type.TypeParameters, out var delegateConstraints)
-                    .AppendParameters(invokeMethod.Parameters)
-                    .AppendTypeConstraints(delegateConstraints)
-                    .Append(';').ToString(), indent);
+                sb.Append("delegate ");
+                sb.AppendReturnSignature(invokeMethod);
+                sb.Append(' ');
+                sb.Append(type.Name);
+                sb.AppendTypeParameters(type.TypeParameters, out var delegateConstraints);
+                sb.AppendParameters(invokeMethod.Parameters);
+                sb.AppendTypeConstraints(delegateConstraints);
+                sb.Append(';');
+                PrintLine(sb.ToString(), indent);
                 return;
             default:
                 throw new($"Named type {type} has unexpected kind {kind}");
@@ -426,7 +439,8 @@ namespace ApiDump
             }
             for (int i = 0; i < bases.Count; ++i)
             {
-                sb.Append(i == 0 ? " : " : ", ").AppendType(bases[i]);
+                sb.Append(i == 0 ? " : " : ", ");
+                sb.AppendType(bases[i]);
             }
             sb.AppendTypeConstraints(constraints);
             PrintLine(sb.ToString(), indent, openBlock: true);
@@ -590,7 +604,8 @@ namespace ApiDump
                 {
                     sb.AppendType(type);
                 }
-                sb.Append(' ').Append(field.Name);
+                sb.Append(' ');
+                sb.Append(field.Name);
                 if (isFixed)
                 {
                     sb.Append('[');
@@ -599,9 +614,11 @@ namespace ApiDump
                 }
                 else if (field.HasConstantValue)
                 {
-                    sb.Append(" = ").AppendConstant(field.ConstantValue, type);
+                    sb.Append(" = ");
+                    sb.AppendConstant(field.ConstantValue, type);
                 }
-                PrintLine(sb.Append(';').ToString(), indent);
+                sb.Append(';');
+                PrintLine(sb.ToString(), indent);
                 break;
             case IEventSymbol eventSymbol:
                 bool showAccessors = false;
@@ -626,8 +643,11 @@ namespace ApiDump
                         break;
                     }
                 }
-                sb.AppendCommonModifiers(eventSymbol, false).Append("event ")
-                    .AppendType(eventSymbol.Type).Append(' ').Append(eventSymbol.Name);
+                sb.AppendCommonModifiers(eventSymbol, false);
+                sb.Append("event ");
+                sb.AppendType(eventSymbol.Type);
+                sb.Append(' ');
+                sb.Append(eventSymbol.Name);
                 if (showAccessors)
                 {
                     sb.Append(" { ");
@@ -646,8 +666,10 @@ namespace ApiDump
                 switch (methodKind)
                 {
                 case MethodKind.Constructor:
-                    PrintLine(sb.Append(containingType.Name)
-                        .AppendParameters(method.Parameters).Append(';').ToString(), indent);
+                    sb.Append(containingType.Name);
+                    sb.AppendParameters(method.Parameters);
+                    sb.Append(';');
+                    PrintLine(sb.ToString(), indent);
                     return;
                 case MethodKind.Ordinary:
                 case MethodKind.Conversion:
@@ -658,15 +680,19 @@ namespace ApiDump
                     if (methodKind == MethodKind.Conversion
                         && conversionNames.TryGetValue(name, out var keyword))
                     {
-                        sb.Append(keyword).Append(" operator ").AppendType(method.ReturnType);
+                        sb.Append(keyword);
+                        sb.Append(" operator ");
+                        sb.AppendType(method.ReturnType);
                     }
                     else
                     {
-                        sb.AppendReturnSignature(method).Append(' ');
+                        sb.AppendReturnSignature(method);
+                        sb.Append(' ');
                         if (methodKind == MethodKind.UserDefinedOperator
                             && operators.TryGetValue(name, out var opToken))
                         {
-                            sb.Append("operator ").Append(opToken);
+                            sb.Append("operator ");
+                            sb.Append(opToken);
                         }
                         else
                         {
@@ -676,7 +702,8 @@ namespace ApiDump
                     sb.AppendTypeParameters(method.TypeParameters, out var constraints);
                     sb.AppendParameters(method.Parameters, method.IsExtensionMethod);
                     sb.AppendTypeConstraints(constraints);
-                    PrintLine(sb.Append(';').ToString(), indent);
+                    sb.Append(';');
+                    PrintLine(sb.ToString(), indent);
                     break;
                 default:
                     throw new($"Unexpected method kind {methodKind}: {method}");
@@ -696,10 +723,12 @@ namespace ApiDump
                 sb.AppendCommonModifiers(property, false);
                 if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
                 else if (property.ReturnsByRef) sb.Append("ref ");
-                sb.AppendType(property.Type).Append(' ');
+                sb.AppendType(property.Type);
+                sb.Append(' ');
                 if (property.IsIndexer)
                 {
-                    sb.Append("this").AppendParameters(property.Parameters, false, '[', ']');
+                    sb.Append("this");
+                    sb.AppendParameters(property.Parameters, false, '[', ']');
                 }
                 else
                 {
@@ -714,7 +743,8 @@ namespace ApiDump
                 {
                     sb.AppendAccessor(true, setter, property, inMutableStruct);
                 }
-                PrintLine(sb.Append('}').ToString(), indent);
+                sb.Append('}');
+                PrintLine(sb.ToString(), indent);
                 break;
             default:
                 throw new($"Unexpected member kind {member.Kind}: {member}");
@@ -724,23 +754,35 @@ namespace ApiDump
         private static void PrintExplicitImplementation(
             IMethodSymbol method, IMethodSymbol implemented, int indent)
         {
-            PrintLine(new StringBuilder().AppendCommonModifiers(method, true).AppendReturnSignature(method)
-                .Append(' ').AppendType(implemented.ContainingType).Append('.').Append(implemented.Name)
-                .AppendTypeParameters(method.TypeParameters, out var constraints)
-                .AppendParameters(method.Parameters, method.IsExtensionMethod)
-                .AppendTypeConstraints(constraints).Append(';').ToString(), indent);
+            var sb = new StringBuilder();
+            sb.AppendCommonModifiers(method, true);
+            sb.AppendReturnSignature(method);
+            sb.Append(' ');
+            sb.AppendType(implemented.ContainingType);
+            sb.Append('.');
+            sb.Append(implemented.Name);
+            sb.AppendTypeParameters(method.TypeParameters, out var constraints);
+            sb.AppendParameters(method.Parameters, method.IsExtensionMethod);
+            sb.AppendTypeConstraints(constraints);
+            sb.Append(';');
+            PrintLine(sb.ToString(), indent);
         }
 
         private static void PrintExplicitImplementation(
             IPropertySymbol property, IPropertySymbol implemented, int indent)
         {
-            var sb = new StringBuilder().AppendCommonModifiers(property, true);
+            var sb = new StringBuilder();
+            sb.AppendCommonModifiers(property, true);
             if (property.ReturnsByRefReadonly) sb.Append("ref readonly ");
             else if (property.ReturnsByRef) sb.Append("ref ");
-            sb.AppendType(property.Type).Append(' ').AppendType(implemented.ContainingType).Append('.');
+            sb.AppendType(property.Type);
+            sb.Append(' ');
+            sb.AppendType(implemented.ContainingType);
+            sb.Append('.');
             if (property.IsIndexer)
             {
-                sb.Append("this").AppendParameters(property.Parameters, false, '[', ']');
+                sb.Append("this");
+                sb.AppendParameters(property.Parameters, false, '[', ']');
             }
             else
             {
@@ -757,15 +799,23 @@ namespace ApiDump
             {
                 sb.AppendAccessor(true, setter, property, false);
             }
-            PrintLine(sb.Append('}').ToString(), indent);
+            sb.Append('}');
+            PrintLine(sb.ToString(), indent);
         }
 
         private static void PrintExplicitImplementation(
             IEventSymbol eventSymbol, IEventSymbol implemented, int indent)
         {
-            PrintLine(new StringBuilder().AppendCommonModifiers(eventSymbol, true).Append("event ")
-                .AppendType(eventSymbol.Type).Append(' ').AppendType(implemented.ContainingType)
-                .Append('.').Append(implemented.Name).Append(';').ToString(), indent);
+            var sb = new StringBuilder();
+            sb.AppendCommonModifiers(eventSymbol, true);
+            sb.Append("event ");
+            sb.AppendType(eventSymbol.Type);
+            sb.Append(' ');
+            sb.AppendType(implemented.ContainingType);
+            sb.Append('.');
+            sb.Append(implemented.Name);
+            sb.Append(';');
+            PrintLine(sb.ToString(), indent);
         }
 
         // TODO: Generalise this attribute handling code.

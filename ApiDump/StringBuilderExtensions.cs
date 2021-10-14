@@ -14,7 +14,7 @@ namespace ApiDump
 {
     static class StringBuilderExtensions
     {
-        public static StringBuilder AppendAccessor(this StringBuilder sb, bool isSetter,
+        public static void AppendAccessor(this StringBuilder sb, bool isSetter,
             IMethodSymbol accessor, IPropertySymbol property, bool inMutableStruct)
         {
             switch (accessor.DeclaredAccessibility)
@@ -29,14 +29,15 @@ namespace ApiDump
             case Accessibility.Private:
             case Accessibility.ProtectedAndInternal:
             case Accessibility.Internal:
-                return sb;
+                return;
             }
             bool isInitAccessor = isSetter && accessor.IsInitOnly;
             if (inMutableStruct && !isInitAccessor && accessor.IsReadOnly)
             {
                 sb.Append("readonly ");
             }
-            return sb.Append(isInitAccessor ? "init" : (isSetter ? "set" : "get")).Append("; ");
+            sb.Append(isInitAccessor ? "init" : (isSetter ? "set" : "get"));
+            sb.Append("; ");
         }
 
         private static readonly Dictionary<SpecialType, string> keywordTypes = new()
@@ -59,17 +60,18 @@ namespace ApiDump
             [SpecialType.System_String] = "string",
         };
 
-        public static StringBuilder AppendType(this StringBuilder sb, ITypeSymbol type)
+        public static void AppendType(this StringBuilder sb, ITypeSymbol type)
         {
             if (type.IsNativeIntegerType)
             {
-                return sb.Append(type.SpecialType switch
+                sb.Append(type.SpecialType switch
                 {
                     SpecialType.System_IntPtr => "nint",
                     SpecialType.System_UIntPtr => "nuint",
                     _ => throw new($"Unknown native integer type '{type}' (SpecialType={type.SpecialType},"
                         + $" UnderlyingType={(type as INamedTypeSymbol)?.NativeIntegerUnderlyingType})"),
                 });
+                return;
             }
             switch (type)
             {
@@ -81,7 +83,9 @@ namespace ApiDump
                 }
                 else if (namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
                 {
-                    return sb.AppendType(namedType.TypeArguments[0]).Append('?');
+                    sb.AppendType(namedType.TypeArguments[0]);
+                    sb.Append('?');
+                    return;
                 }
                 else if (namedType.IsTupleType && (tupleElements = namedType.TupleElements).Length > 1)
                 {
@@ -93,10 +97,12 @@ namespace ApiDump
                         sb.AppendType(element.Type);
                         if (!SymbolEqualityComparer.Default.Equals(element, element.CorrespondingTupleField))
                         {
-                            sb.Append(' ').Append(element.Name);
+                            sb.Append(' ');
+                            sb.Append(element.Name);
                         }
                     }
-                    return sb.Append(')');
+                    sb.Append(')');
+                    return;
                 }
                 else
                 {
@@ -115,9 +121,12 @@ namespace ApiDump
                 }
                 break;
             case IPointerTypeSymbol pointerType:
-                return sb.AppendType(pointerType.PointedAtType).Append('*');
+                sb.AppendType(pointerType.PointedAtType);
+                sb.Append('*');
+                return;
             case IArrayTypeSymbol arrayType:
-                sb.AppendType(arrayType.ElementType).Append('[');
+                sb.AppendType(arrayType.ElementType);
+                sb.Append('[');
                 if (!arrayType.IsSZArray)
                 {
                     int rank = arrayType.Rank;
@@ -165,7 +174,9 @@ namespace ApiDump
                 var fnParams = fnSig.Parameters;
                 sb.AppendParameters(fnParams, false, '<', null);
                 if (!fnParams.IsDefaultOrEmpty) sb.Append(", ");
-                return sb.AppendReturnSignature(fnSig).Append('>');
+                sb.AppendReturnSignature(fnSig);
+                sb.Append('>');
+                return;
             default:
                 sb.Append(type.TypeKind switch
                 {
@@ -180,23 +191,28 @@ namespace ApiDump
             {
                 sb.Append('?');
             }
-            return sb;
         }
 
-        public static StringBuilder AppendReturnSignature(this StringBuilder sb, IMethodSymbol method)
+        public static void AppendReturnSignature(this StringBuilder sb, IMethodSymbol method)
         {
-            return method.ReturnsVoid
-                ? sb.Append("void")
-                : sb.Append(method.RefKind switch
+            if (method.ReturnsVoid)
             {
-                RefKind.Ref => "ref ",
-                RefKind.RefReadOnly => "ref readonly ",
-                RefKind.None => "",
-                _ => throw new($"Invalid ref kind for return: {method.RefKind}"),
-            }).AppendType(method.ReturnType);
+                sb.Append("void");
+            }
+            else
+            {
+                sb.Append(method.RefKind switch
+                {
+                    RefKind.Ref => "ref ",
+                    RefKind.RefReadOnly => "ref readonly ",
+                    RefKind.None => "",
+                    _ => throw new($"Invalid ref kind for return: {method.RefKind}"),
+                });
+                sb.AppendType(method.ReturnType);
+            }
         }
 
-        public static StringBuilder AppendParameters(this StringBuilder sb,
+        public static void AppendParameters(this StringBuilder sb,
             ImmutableArray<IParameterSymbol> parameters,
             bool isExtension = false, char open = '(', char? close = ')')
         {
@@ -215,43 +231,73 @@ namespace ApiDump
                     RefKind.In => "in ",
                     RefKind.None => "",
                     _ => throw new($"Invalid ref kind for parameter: {p.RefKind}"),
-                }).AppendType(type);
+                });
+                sb.AppendType(type);
                 string name = p.Name;
-                if (!string.IsNullOrEmpty(name)) sb.Append(' ').Append(name);
+                if (!string.IsNullOrEmpty(name))
+                {
+                    sb.Append(' ');
+                    sb.Append(name);
+                }
                 if (p.HasExplicitDefaultValue)
                 {
-                    sb.Append(" = ").AppendConstant(p.ExplicitDefaultValue, type);
+                    sb.Append(" = ");
+                    sb.AppendConstant(p.ExplicitDefaultValue, type);
                 }
             }
             if (close.HasValue) sb.Append(close.GetValueOrDefault());
-            return sb;
         }
 
-        private static StringBuilder AppendChar(this StringBuilder sb, int c)
+        private static void AppendChar(this StringBuilder sb, int c)
         {
             const string escapes = "0\0\0\0\0\0\0abtnvfr";
 
-            if (c < escapes.Length && escapes[c] != 0) return sb.Append('\\').Append(escapes[c]);
-            else if (c < 32 || c == 127) return sb.Append("\\x").AppendHexLiteral(c, 2);
-            else if (c == '\\') return sb.Append("\\\\");
-            else if (c == '"') return sb.Append("\\\"");
-            else if (c < 127) return sb.Append((char)c);
-            return sb.Append("\\u").AppendHexLiteral(c, 4);
+            if (c < escapes.Length && escapes[c] != 0)
+            {
+                sb.Append('\\');
+                sb.Append(escapes[c]);
+            }
+            else if (c < 32 || c == 127)
+            {
+                sb.Append("\\x");
+                sb.AppendHexLiteral(c, 2);
+            }
+            else if (c == '\\')
+            {
+                sb.Append("\\\\");
+            }
+            else if (c == '"')
+            {
+                sb.Append("\\\"");
+            }
+            else if (c < 127)
+            {
+                sb.Append((char)c);
+            }
+            else
+            {
+                sb.Append("\\u");
+                sb.AppendHexLiteral(c, 4);
+            }
         }
 
         // Equivalent to AppendFormat("{0:xN}", c), but avoids a box and a format string parse.
-        private static StringBuilder AppendHexLiteral(this StringBuilder sb, int value, int padWidth)
+        private static void AppendHexLiteral(this StringBuilder sb, int value, int padWidth)
         {
             const string hexLiterals = "0123456789abcdef";
 
-            if (value == 0) return sb.Append('0', padWidth);
-
-            int numDigits = Math.Max(padWidth, (BitOperations.Log2((uint)value) >> 2) + 1);
-            for (int i = numDigits - 1; i >= 0; --i)
+            if (value == 0)
             {
-                sb.Append(hexLiterals[(int)((uint)value >> (i << 2)) & 0xf]);
+                sb.Append('0', padWidth);
             }
-            return sb;
+            else
+            {
+                int numDigits = Math.Max(padWidth, (BitOperations.Log2((uint)value) >> 2) + 1);
+                for (int i = numDigits - 1; i >= 0; --i)
+                {
+                    sb.Append(hexLiterals[(int)((uint)value >> (i << 2)) & 0xf]);
+                }
+            }
         }
 
         private static ulong UnboxEnumValue(object value)
@@ -277,7 +323,7 @@ namespace ApiDump
 
 #pragma warning restore RS1024
 
-        private static StringBuilder AppendEnumValue(this StringBuilder sb, object value, INamedTypeSymbol type)
+        private static void AppendEnumValue(this StringBuilder sb, object value, INamedTypeSymbol type)
         {
             type = type.OriginalDefinition;
             if (!enumCache.TryGetValue(type, out var enumInfo))
@@ -305,7 +351,9 @@ namespace ApiDump
                     {
                         if (started) sb.Append(" | ");
                         started = true;
-                        sb.Append(type.Name).Append('.').Append(name);
+                        sb.Append(type.Name);
+                        sb.Append('.');
+                        sb.Append(name);
                     }
                     else
                     {
@@ -318,92 +366,103 @@ namespace ApiDump
                     started = true;
                     sb.Append(leftover);
                 }
-                return started ? sb : sb.Append('0');
+                if (!started) sb.Append('0');
             }
             else if (enumInfo.Values.TryGetValue(rawValue, out var name))
             {
-                return sb.Append(type.Name).Append('.').Append(name);
+                sb.Append(type.Name);
+                sb.Append('.');
+                sb.Append(name);
             }
-            return sb.Append(value);
+            else
+            {
+                sb.Append(value);
+            }
         }
 
         // Note: type may be null ONLY when writing the underlying value of an enum member.
-        public static StringBuilder AppendConstant(this StringBuilder sb, object? value, ITypeSymbol? type)
+        public static void AppendConstant(this StringBuilder sb, object? value, ITypeSymbol? type)
         {
             if (value is string s)
             {
                 sb.Append('"');
                 foreach (int c in s) sb.AppendChar(c);
-                return sb.Append('"');
+                sb.Append('"');
             }
             else if (value is char c)
             {
-                return sb.Append('\'').AppendChar(c).Append('\'');
+                sb.Append('\'');
+                sb.AppendChar(c);
+                sb.Append('\'');
             }
             else if (value is double d)
             {
                 // double.ToString() does not produce valid C# expressions for these values.
                 // Display references to the member constants instead.
-                if (double.IsNaN(d)) return sb.Append("double.NaN");
-                else if (double.IsNegativeInfinity(d)) return sb.Append("double.NegativeInfinity");
-                else if (double.IsInfinity(d)) return sb.Append("double.PositiveInfinity");
-                return sb.Append(d);
+                if (double.IsNaN(d)) sb.Append("double.NaN");
+                else if (double.IsNegativeInfinity(d)) sb.Append("double.NegativeInfinity");
+                else if (double.IsInfinity(d)) sb.Append("double.PositiveInfinity");
+                else sb.Append(d);
             }
             else if (value is float f)
             {
-                if (float.IsNaN(f)) return sb.Append("float.NaN");
-                else if (float.IsNegativeInfinity(f)) return sb.Append("float.NegativeInfinity");
-                else if (float.IsInfinity(f)) return sb.Append("float.PositiveInfinity");
-                return sb.Append(f);
+                if (float.IsNaN(f)) sb.Append("float.NaN");
+                else if (float.IsNegativeInfinity(f)) sb.Append("float.NegativeInfinity");
+                else if (float.IsInfinity(f)) sb.Append("float.PositiveInfinity");
+                else sb.Append(f);
             }
             else if (value is not null)
             {
-                return type?.TypeKind == TypeKind.Enum
-                    ? sb.AppendEnumValue(value, (INamedTypeSymbol)type) : sb.Append(value);
+                if (type is not null && type.TypeKind == TypeKind.Enum)
+                {
+                    sb.AppendEnumValue(value, (INamedTypeSymbol)type);
+                }
+                else
+                {
+                    sb.Append(value);
+                }
             }
             else if (type is null)
             {
-                return sb.Append('0');
+                sb.Append('0');
             }
             else
             {
                 var typeKind = type.TypeKind;
                 if (typeKind == TypeKind.Pointer || typeKind == TypeKind.FunctionPointer)
                 {
-                    return sb.Append("null");
+                    sb.Append("null");
                 }
                 else if (typeKind == TypeKind.Enum || type.IsNativeIntegerType)
                 {
-                    return sb.Append('0');
+                    sb.Append('0');
                 }
                 else if (type.IsReferenceType)
                 {
                     // If a named type is not known to the compilation, Roslyn seems
                     // to assume that it's a class and returns true on IsReferenceType,
                     // but this may not be correct, so we use "default" for this case.
-                    return sb.Append(typeKind == TypeKind.Error ? "default" : "null");
+                    sb.Append(typeKind == TypeKind.Error ? "default" : "null");
                 }
                 else if (type is INamedTypeSymbol namedType)
                 {
-                    switch (namedType.OriginalDefinition.SpecialType)
+                    sb.Append(namedType.OriginalDefinition.SpecialType switch
                     {
-                    case SpecialType.System_Boolean:
-                        return sb.Append("false");
-                    case SpecialType.System_Char:
-                        return sb.Append("'\\0'");
-                    case SpecialType.System_Nullable_T:
-                        return sb.Append("null");
-                    case >= SpecialType.System_SByte and <= SpecialType.System_UIntPtr:
-                        // This range includes string, but if a symbol identifies as string
-                        // then the reference type path above will have already been taken.
-                        return sb.Append('0');
-                    }
+                        SpecialType.System_Boolean => "false",
+                        SpecialType.System_Char => "'\\0'",
+                        SpecialType.System_Nullable_T => "null",
+                        >= SpecialType.System_SByte and <= SpecialType.System_UIntPtr => "0",
+                        _ => "default",
+                    });
+                }
+                else
+                {
+                    sb.Append("default");
                 }
             }
-            return sb.Append("default");
         }
 
-        public static StringBuilder AppendTypeParameters(this StringBuilder sb,
+        public static void AppendTypeParameters(this StringBuilder sb,
             ImmutableArray<ITypeParameterSymbol> tParams,
             out List<(string TParamName, List<string> Constraint)>? constraints)
         {
@@ -422,7 +481,8 @@ namespace ApiDump
                         VarianceKind.Out => "out ",
                         VarianceKind.None => "",
                         _ => throw new($"Invalid variance kind: {param.Variance}"),
-                    }).Append(name);
+                    });
+                    sb.Append(name);
                     var constraint = new List<string>();
                     if (param.HasUnmanagedTypeConstraint)
                     {
@@ -447,7 +507,9 @@ namespace ApiDump
                     {
                         for (int j = 0; j < constraintTypes.Length; ++j)
                         {
-                            constraint.Add(new StringBuilder().AppendType(constraintTypes[j]).ToString());
+                            var typeBuilder = new StringBuilder();
+                            typeBuilder.AppendType(constraintTypes[j]);
+                            constraint.Add(typeBuilder.ToString());
                         }
                     }
                     if (param.HasConstructorConstraint)
@@ -462,17 +524,18 @@ namespace ApiDump
                 }
                 sb.Append('>');
             }
-            return sb;
         }
 
-        public static StringBuilder AppendTypeConstraints(this StringBuilder sb,
+        public static void AppendTypeConstraints(this StringBuilder sb,
             List<(string, List<string>)>? constraints)
         {
             if (constraints is not null)
             {
                 foreach ((string param, var constraint) in constraints)
                 {
-                    sb.Append(" where ").Append(param).Append(" : ");
+                    sb.Append(" where ");
+                    sb.Append(param);
+                    sb.Append(" : ");
                     for (int i = 0; i < constraint.Count; ++i)
                     {
                         if (i != 0) sb.Append(", ");
@@ -480,10 +543,9 @@ namespace ApiDump
                     }
                 }
             }
-            return sb;
         }
 
-        public static StringBuilder AppendCommonModifiers(this StringBuilder sb,
+        public static void AppendCommonModifiers(this StringBuilder sb,
             ISymbol member, bool explicitInterfaceImplementation)
         {
             if (member.IsStatic)
@@ -515,7 +577,6 @@ namespace ApiDump
                 // Show either way to distinguish virtual from defaultly abstract members.
                 sb.Append(member.IsVirtual ? "virtual " : "sealed ");
             }
-            return sb;
         }
     }
 }
