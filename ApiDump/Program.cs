@@ -34,7 +34,6 @@ namespace ApiDump
      *    + Records (distinguished from classes with ITypeSymbol.IsRecord).
      *  - C# 10 features:
      *    + Record structs.
-     *    + Parameterless struct constructors.
      *    + Reevaluate when 10.0 leaves preview.
      */
 
@@ -515,11 +514,9 @@ namespace ApiDump
                     PrintLine($"~{containingType.Name}();", indent);
                     return;
                 case MethodKind.Constructor:
-                    if (containingTypeKind == TypeKind.Struct && m.Parameters.IsDefaultOrEmpty)
+                    if (containingTypeKind == TypeKind.Struct
+                        && m.IsImplicitlyDeclared && m.Parameters.IsDefaultOrEmpty)
                     {
-                        // TODO: This may no longer be correct under C# 10.
-                        // Need to distinguish between a real default ctor loaded from metadata,
-                        // and the dummy MethodSymbols created to support new() on all structs.
                         return;
                     }
                     break;
