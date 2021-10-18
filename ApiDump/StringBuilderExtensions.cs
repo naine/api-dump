@@ -95,7 +95,7 @@ namespace ApiDump
                         if (i != 0) sb.Append(", ");
                         var element = tupleElements[i];
                         sb.AppendType(element.Type);
-                        if (!SymbolEqualityComparer.Default.Equals(element, element.CorrespondingTupleField))
+                        if (element.IsExplicitlyNamedTupleElement)
                         {
                             sb.Append(' ');
                             sb.Append(element.Name);
