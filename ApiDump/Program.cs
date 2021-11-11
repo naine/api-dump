@@ -622,7 +622,7 @@ namespace ApiDump
                 if (isFixed)
                 {
                     sb.Append('[');
-                    if (field.TryGetFixedBufferSize(out int size)) sb.Append(size);
+                    sb.Append(field.FixedSize);
                     sb.Append(']');
                 }
                 else if (field.HasConstantValue)
@@ -875,27 +875,6 @@ namespace ApiDump
                     return true;
                 }
             }
-            return false;
-        }
-
-        public static bool TryGetFixedBufferSize(this IFieldSymbol field, out int size)
-        {
-            foreach (var attr in field.GetAttributes())
-            {
-                var type = attr.AttributeClass;
-                if (type is null || type.Name != "FixedBufferAttribute"
-                    || !IsCompilerServices(type.ContainingNamespace)
-                    || type.Arity != 0 || type.ContainingType is not null) continue;
-                var args = attr.ConstructorArguments;
-                if (args.IsDefault || args.Length != 2 || args[0].Kind != TypedConstantKind.Type) continue;
-                var sizeArg = args[1];
-                if (sizeArg.Kind == TypedConstantKind.Primitive && sizeArg.Value is int value)
-                {
-                    size = value;
-                    return true;
-                }
-            }
-            Unsafe.SkipInit(out size);
             return false;
         }
     }

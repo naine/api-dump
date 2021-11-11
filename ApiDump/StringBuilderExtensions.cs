@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Numerics;
 using System.Reflection.Metadata;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
@@ -326,10 +327,10 @@ namespace ApiDump
         private static void AppendEnumValue(this StringBuilder sb, object value, INamedTypeSymbol type)
         {
             type = type.OriginalDefinition;
-            if (!enumCache.TryGetValue(type, out var enumInfo))
+            ref var enumInfo = ref CollectionsMarshal.GetValueRefOrAddDefault(enumCache, type, out bool exists);
+            if (!exists)
             {
-                // TODO: In .NET 6 this can use CollectionsMarshal.GetValueRefOrAddDefault()
-                enumCache[type] = enumInfo = (type.IsFlagsEnum(), new());
+                enumInfo = (type.IsFlagsEnum(), new());
                 foreach (var member in type.GetMembers())
                 {
                     if (member is IFieldSymbol field)

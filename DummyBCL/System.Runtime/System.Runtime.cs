@@ -393,9 +393,11 @@ namespace System.Diagnostics.CodeAnalysis
         public DoesNotReturnIfAttribute(bool parameterValue) { }
         public bool ParameterValue => throw null;
     }
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property
-        | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.ReturnValue
-        | AttributeTargets.GenericParameter, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct
+        | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field
+        | AttributeTargets.Interface | AttributeTargets.Parameter
+        | AttributeTargets.ReturnValue | AttributeTargets.GenericParameter,
+        Inherited = false)]
     public sealed class DynamicallyAccessedMembersAttribute : Attribute
     {
         public DynamicallyAccessedMembersAttribute(DynamicallyAccessedMemberTypes memberTypes) { }
@@ -419,6 +421,7 @@ namespace System.Diagnostics.CodeAnalysis
         NonPublicProperties = 0x400,
         PublicEvents = 0x800,
         NonPublicEvents = 0x1000,
+        Interfaces = 0x2000,
     }
     [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method
         | AttributeTargets.Field, AllowMultiple = true, Inherited = false)]
@@ -478,7 +481,18 @@ namespace System.Diagnostics.CodeAnalysis
         public NotNullWhenAttribute(bool returnValue) { }
         public bool ReturnValue => throw null;
     }
-    [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method
+        | AttributeTargets.Property | AttributeTargets.Event,
+        Inherited = false, AllowMultiple = false)]
+    public sealed class RequiresAssemblyFilesAttribute : Attribute
+    {
+        public RequiresAssemblyFilesAttribute() { }
+        public RequiresAssemblyFilesAttribute(string message) { }
+        public string? Message => throw null;
+        public string? Url { get => throw null; set { } }
+    }
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Constructor
+        | AttributeTargets.Method, Inherited = false)]
     public sealed class RequiresUnreferencedCodeAttribute : Attribute
     {
         public RequiresUnreferencedCodeAttribute(string message) { }
@@ -500,7 +514,9 @@ namespace System.Runtime.CompilerServices
 {
     public class CallConvCdecl { }
     public class CallConvFastcall { }
+    public class CallConvMemberFunction { }
     public class CallConvStdcall { }
+    public class CallConvSuppressGCTransition { }
     public class CallConvThiscall { }
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
     public sealed class CallerArgumentExpressionAttribute : Attribute
@@ -614,6 +630,7 @@ namespace System.Runtime.CompilerServices
         public const string DefaultImplementationsOfInterfaces = "DefaultImplementationsOfInterfaces";
         public const string UnmanagedSignatureCallingConvention = "UnmanagedSignatureCallingConvention";
         public const string PortablePdb = "PortablePdb";
+        public const string VirtualStaticsInInterfaces = "VirtualStaticsInInterfaces";
         public static bool IsDynamicCodeCompiled => throw null;
         public static bool IsDynamicCodeSupported => throw null;
         public static bool IsSupported(string feature) => throw null;

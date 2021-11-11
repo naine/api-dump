@@ -1,8 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RuntimeMetadataVersion>v4.0.30319</RuntimeMetadataVersion>
-    <Version>5.0.0.0</Version>
+    <Version>6.0.0.0</Version>
     <AssemblyOriginatorKeyFile>MSFT.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 </Project>

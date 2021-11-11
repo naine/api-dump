@@ -45,11 +45,14 @@ namespace ApiDump
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void AddSlow(T item)
         {
-            // TODO: In .NET 6 use Array.MaxLength
+            if (Count >= Array.MaxLength)
+            {
+                throw new OutOfMemoryException();
+            }
             int newCount = Count + 1;
-            var newItems = GC.AllocateUninitializedArray<T>(
-                Math.Max(newCount, (int)Math.Min(0x7FFFFFC7u,
-                items is null || items.Length == 0 ? 8u : 2u * (uint)items.Length)));
+            var newItems = GC.AllocateUninitializedArray<T>((int)Math.Clamp(
+                items is null || items.Length == 0 ? 8u : 2u * (uint)items.Length,
+                (uint)newCount, (uint)Array.MaxLength));
             if (items is not null)
             {
                 items.AsSpan(0, Count).CopyTo(newItems);

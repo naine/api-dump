@@ -2,10 +2,8 @@
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AnalysisLevel>latest</AnalysisLevel>
-    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
-    <NoWarn>CA1014,CA1031,CA1303,CA2201,$(NoWarn)</NoWarn>
     <EnableSingleFileAnalysis>true</EnableSingleFileAnalysis>
     <PublishReadyToRunShowWarnings>true</PublishReadyToRunShowWarnings>
   </PropertyGroup>
