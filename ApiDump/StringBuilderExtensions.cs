@@ -5,8 +5,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Reflection.Metadata;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -41,25 +43,41 @@ namespace ApiDump
             sb.Append("; ");
         }
 
-        private static readonly Dictionary<SpecialType, string> keywordTypes = new()
+        private static string?[]? typeKeywords;
+
+        private static bool IsKeywordType(SpecialType type, [NotNullWhen(true)] out string? keyword)
         {
-            [SpecialType.System_Object] = "object",
-            [SpecialType.System_Void] = "void",
-            [SpecialType.System_Byte] = "byte",
-            [SpecialType.System_SByte] = "sbyte",
-            [SpecialType.System_Int16] = "short",
-            [SpecialType.System_UInt16] = "ushort",
-            [SpecialType.System_Int32] = "int",
-            [SpecialType.System_UInt32] = "uint",
-            [SpecialType.System_Int64] = "long",
-            [SpecialType.System_UInt64] = "ulong",
-            [SpecialType.System_Single] = "float",
-            [SpecialType.System_Double] = "double",
-            [SpecialType.System_Decimal] = "decimal",
-            [SpecialType.System_Boolean] = "bool",
-            [SpecialType.System_Char] = "char",
-            [SpecialType.System_String] = "string",
-        };
+            var keywords = typeKeywords ?? Init();
+            if ((uint)type < (uint)keywords.Length)
+            {
+                return (keyword = keywords[(uint)type]) is not null;
+            }
+            keyword = null;
+            return false;
+
+            [MethodImpl(MethodImplOptions.NoInlining)]
+            static string?[] Init()
+            {
+                var keywords = new string?[1 + (uint)SpecialType.System_String];
+                keywords[(uint)SpecialType.System_Object] = "object";
+                keywords[(uint)SpecialType.System_Void] = "void";
+                keywords[(uint)SpecialType.System_Byte] = "byte";
+                keywords[(uint)SpecialType.System_SByte] = "sbyte";
+                keywords[(uint)SpecialType.System_Int16] = "short";
+                keywords[(uint)SpecialType.System_UInt16] = "ushort";
+                keywords[(uint)SpecialType.System_Int32] = "int";
+                keywords[(uint)SpecialType.System_UInt32] = "uint";
+                keywords[(uint)SpecialType.System_Int64] = "long";
+                keywords[(uint)SpecialType.System_UInt64] = "ulong";
+                keywords[(uint)SpecialType.System_Single] = "float";
+                keywords[(uint)SpecialType.System_Double] = "double";
+                keywords[(uint)SpecialType.System_Decimal] = "decimal";
+                keywords[(uint)SpecialType.System_Boolean] = "bool";
+                keywords[(uint)SpecialType.System_Char] = "char";
+                keywords[(uint)SpecialType.System_String] = "string";
+                return typeKeywords = keywords;
+            }
+        }
 
         public static void AppendType(this StringBuilder sb, ITypeSymbol type)
         {
@@ -78,7 +96,7 @@ namespace ApiDump
             {
             case INamedTypeSymbol namedType:
                 ImmutableArray<IFieldSymbol> tupleElements;
-                if (keywordTypes.TryGetValue(namedType.SpecialType, out var keyword))
+                if (IsKeywordType(namedType.SpecialType, out var keyword))
                 {
                     sb.Append(keyword);
                 }

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -466,11 +467,22 @@ namespace ApiDump
             PrintEndBlock(indent);
         }
 
-        private static readonly Dictionary<string, string> conversionNames = new()
+        private static bool IsWellKnownConversionName(string name, [NotNullWhen(true)] out string? keyword)
         {
-            [WellKnownMemberNames.ExplicitConversionName] = "explicit",
-            [WellKnownMemberNames.ImplicitConversionName] = "implicit",
-        };
+            switch (name)
+            {
+            case WellKnownMemberNames.ExplicitConversionName:
+                keyword = "explicit";
+                break;
+            case WellKnownMemberNames.ImplicitConversionName:
+                keyword = "implicit";
+                break;
+            default:
+                keyword = null;
+                return false;
+            }
+            return true;
+        }
 
         private static readonly Dictionary<string, string> operators = new()
         {
@@ -691,7 +703,7 @@ namespace ApiDump
                     sb.AppendCommonModifiers(method, false);
                     string name = method.Name;
                     if (methodKind == MethodKind.Conversion
-                        && conversionNames.TryGetValue(name, out var keyword))
+                        && IsWellKnownConversionName(name, out var keyword))
                     {
                         sb.Append(keyword);
                         sb.Append(" operator ");
