@@ -20,22 +20,25 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace ApiDump
 {
     /* TODO: The following need to be handled correctly:
-     *  - Type names should be qualified where ambiguous or nested and not in scope.
+     *  - Type names should be qualified where ambiguous or not in scope.
      *  - Add option to control whether forwarded types are hidden, listed, or defined.
      *  - Some attributes should be displayed.
      *    + Use command line options to explicitly show or hide specific attributes.
      *    + Need to support attributes that compile into IL metadata, such as StructLayout.
      *    + There should be a default list of known attributes that are shown/hidden.
-     *      ~ Includes attributes that visibly affect consumers, like Obsolete, etc.
-     *      ~ Excludes attributes that should be implementation details.
+     *      ~ Includes attributes that affect consumers, like Obsolete, UnmanagedCallersOnly, etc.
+     *      ~ Excludes attributes that only affect implementation.
      *      ~ Includes nullability attributes like AllowNull only if not --no-nullable.
      *      ~ Allow specifying default for unknown attributes.
      *  - C# 9 features:
-     *    + Unmanaged calling convention methods.
      *    + Records (distinguished from classes with ITypeSymbol.IsRecord).
      *  - C# 10 features:
      *    + Record structs.
-     *    + Reevaluate when 10.0 leaves preview.
+     *    + Static abstract members in interfaces.
+     *  - C# Preview/vNext features:
+     *    + Ref fields.
+     *    + Checked operators.
+     *    + Required members.
      */
 
     static class Program
@@ -578,10 +581,10 @@ namespace ApiDump
             switch (member.DeclaredAccessibility)
             {
             case Accessibility.Public:
-                // Try to use pre-8.0 C# syntax for interface members wherever possible.
-                // This means that for public abstract members, we hide these modifiers,
-                // as they are implied and previously could not be made explicit.
-                if (!inInterface || !member.IsAbstract) sb.Append("public ");
+                // Try to use pre-8.0 C# syntax for interface members where possible.
+                // This means that for public or abstract members, we hide these modifiers,
+                // as they are the default and previously could not be specified.
+                if (!inInterface) sb.Append("public ");
                 break;
             case Accessibility.Protected:
             case Accessibility.ProtectedOrInternal:

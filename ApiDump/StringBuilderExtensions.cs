@@ -240,9 +240,6 @@ namespace ApiDump
             {
                 if (i != 0) sb.Append(", ");
                 var p = parameters[i];
-                if (isExtension && i == 0) sb.Append("this ");
-                else if (p.IsParams) sb.Append("params ");
-                var type = p.Type;
                 sb.Append(p.RefKind switch
                 {
                     RefKind.Ref => "ref ",
@@ -251,6 +248,9 @@ namespace ApiDump
                     RefKind.None => "",
                     _ => throw new($"Invalid ref kind for parameter: {p.RefKind}"),
                 });
+                if (isExtension && i == 0) sb.Append("this ");
+                else if (p.IsParams) sb.Append("params ");
+                var type = p.Type;
                 sb.AppendType(type);
                 string name = p.Name;
                 if (!string.IsNullOrEmpty(name))
@@ -579,7 +579,7 @@ namespace ApiDump
             }
             else if (member.IsAbstract)
             {
-                // Abstract by default. See comment in PrintMember about public accessbility.
+                // Abstract by default. See comment in PrintMember about interface members.
                 if (member.DeclaredAccessibility is not Accessibility.NotApplicable
                     and not Accessibility.Public)
                 {
@@ -589,7 +589,7 @@ namespace ApiDump
             else if (!explicitInterfaceImplementation)
             {
                 // Non-abstract interface members are implicitly virtual unless declared sealed.
-                // Show either way to distinguish virtual from defaultly abstract members.
+                // Show either way to distinguish virtual members from defaultly abstract members.
                 sb.Append(member.IsVirtual ? "virtual " : "sealed ");
             }
         }

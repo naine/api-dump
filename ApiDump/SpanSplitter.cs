@@ -9,7 +9,7 @@ using System.ComponentModel;
 
 namespace ApiDump
 {
-    // Similar to string.Split(), but without all the allocations.
+    // Allocation-free alternative to string.Split(RemoveEmptyEntries).
     ref struct SpanSplitter
     {
         private ReadOnlySpan<char> remaining;
