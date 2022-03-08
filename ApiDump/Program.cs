@@ -427,13 +427,16 @@ namespace ApiDump
                 if (!showAllInterfaces)
                 {
                     // Don't add an interface inherited by one already added.
+                    bool alreadyImplied = false;
                     foreach (var t in bases)
                     {
                         if (t.Interfaces.Contains(iface, SymbolEqualityComparer.Default))
                         {
-                            continue;
+                            alreadyImplied = true;
+                            break;
                         }
                     }
+                    if (alreadyImplied) continue;
                     // Remove any previously added interfaces inherited by the one we're adding now.
                     var inherited = iface.Interfaces;
                     for (int firstToRemove = 0; firstToRemove < bases.Count; ++firstToRemove)
