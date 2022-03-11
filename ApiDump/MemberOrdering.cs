@@ -23,7 +23,8 @@ namespace ApiDump
             // Special case enum values, sort by value over name.
             if (x.ContainingType?.TypeKind == TypeKind.Enum &&
                 y.ContainingType?.TypeKind == TypeKind.Enum &&
-                x is IFieldSymbol xf && y is IFieldSymbol yf)
+                x is IFieldSymbol xf && xf.HasConstantValue &&
+                y is IFieldSymbol yf && yf.HasConstantValue)
             {
                 object? yValue = yf.ConstantValue;
                 return (c = xf.ConstantValue switch

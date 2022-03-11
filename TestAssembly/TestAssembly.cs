@@ -164,7 +164,7 @@ namespace TestAssembly
     {
         public static int FuncManaged(nuint x, nuint y) => (int)(x + y);
 
-        [UnmanagedCallersOnly()]
+        [UnmanagedCallersOnly]
         public static int FuncUnmanaged(nuint x, nuint y) => (int)(x + y);
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -291,10 +291,13 @@ namespace TestAssembly
         public readonly byte Foo;
     }
 
-    public interface IFooInterface : IEnumerable
+    public interface IFooInterface<T> : IEnumerable
+        where T : IFooInterface<T>
     {
         int Prop1 { get; }
+        int Prop1B { get; }
         int Prop2 { get; set; }
+        int Prop2B { get; set; }
         ref int Prop3 { get; }
         ref readonly int Prop4 { get; }
 #if NET5_0_OR_GREATER
@@ -303,31 +306,55 @@ namespace TestAssembly
 #endif
         event VoidDelegate Event1;
         event ValDelegate Event2;
+        event Action Event3;
         void Method();
+        void MethodB();
 
-#if INTERFACE_DEFAULTS
+#if NETCOREAPP3_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        void Method0() { }
         virtual void Method1() { }
         public void Method2() { }
-        public sealed void Method3(int x) { }
-        protected void Method4(int x) { }
-    }
+        public sealed void Method3() { }
+        protected void Method4() { }
+        protected sealed void Method5() { }
+        protected void Method6();
 
-    public interface ISubInterface : IFooInterface
-    {
-        void IFooInterface.Method() { }
-        abstract void IFooInterface.Method1();
-        void IFooInterface.Method2() { }
+#if NET6_0_OR_GREATER
+        static abstract int StaticAbstractMethod1();
+        static abstract int StaticAbstractMethod2();
+        static abstract int StaticAbstractProp1 { get; set; }
+        static abstract int StaticAbstractProp2 { get; set; }
+        static abstract event Action StaticAbstractEvent1;
+        static abstract event Action StaticAbstractEvent2;
+        static abstract int operator +(IFooInterface<T> l, IFooInterface<T> r);
+        static abstract int operator -(T l, T r);
+        static abstract int operator *(T l, T r);
+        static abstract explicit operator int(T x);
+        static abstract explicit operator long(T x);
+        static abstract implicit operator uint(T x);
+        static abstract implicit operator ulong(T x);
+        static abstract explicit operator T(int x);
+        static abstract explicit operator T(long x);
+        static abstract implicit operator T(uint x);
+        static abstract implicit operator T(ulong x);
 #endif
     }
 
-    public class FooImpl : IFooInterface
+    public interface ISubInterface<T> : IFooInterface<T>
+        where T : IFooInterface<T>
     {
-        public int Prop1 => throw new NotImplementedException();
-        public int Prop2
-        {
-            get => throw new NotImplementedException();
-            set => throw new NotImplementedException();
-        }
+        void IFooInterface<T>.Method() { }
+        abstract void IFooInterface<T>.Method1();
+        void IFooInterface<T>.Method2() { }
+#endif
+    }
+
+    public class FooImpl : IFooInterface<FooImpl>
+    {
+        public int Prop1 => 0;
+        int IFooInterface<FooImpl>.Prop1B => 0;
+        public int Prop2 { get => 0; set { } }
+        int IFooInterface<FooImpl>.Prop2B { get => 0; set { } }
         public ref int Prop3 => throw new NotImplementedException();
         public ref readonly int Prop4 => throw new NotImplementedException();
 #if NET5_0_OR_GREATER
@@ -340,9 +367,35 @@ namespace TestAssembly
 #endif
         public event VoidDelegate? Event1;
         public event ValDelegate Event2 { add { } remove { } }
+        event Action IFooInterface<FooImpl>.Event3 { add { } remove { } }
         public IEnumerator GetEnumerator() => throw new NotImplementedException();
         public void Method() => throw new NotImplementedException();
+        void IFooInterface<FooImpl>.MethodB() => throw new NotImplementedException();
+#if NETCOREAPP3_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+        void IFooInterface<FooImpl>.Method0() { }
         public void Method2() => throw new NotImplementedException();
+        void IFooInterface<FooImpl>.Method4() { }
+        void IFooInterface<FooImpl>.Method6() { }
+#if NET6_0_OR_GREATER
+        public static int StaticAbstractMethod1() => 0;
+        static int IFooInterface<FooImpl>.StaticAbstractMethod2() => 0;
+        public static int StaticAbstractProp1 { get => 0; set { } }
+        static int IFooInterface<FooImpl>.StaticAbstractProp2 { get => 0; set { } }
+        public static event Action StaticAbstractEvent1 { add { } remove { } }
+        static event Action IFooInterface<FooImpl>.StaticAbstractEvent2 { add { } remove { } }
+        static int IFooInterface<FooImpl>.operator +(IFooInterface<FooImpl> l, IFooInterface<FooImpl> r) => 0;
+        static int IFooInterface<FooImpl>.operator -(FooImpl l, FooImpl r) => 0;
+        public static int operator *(FooImpl l, FooImpl r) => 0;
+        public static explicit operator int(FooImpl x) => 0;
+        public static implicit operator uint(FooImpl x) => 0;
+        public static explicit operator FooImpl(int x) => null!;
+        public static implicit operator FooImpl(uint x) => null!;
+        static explicit IFooInterface<FooImpl>.operator long(FooImpl x) => 0;
+        static implicit IFooInterface<FooImpl>.operator ulong(FooImpl x) => 0;
+        static explicit IFooInterface<FooImpl>.operator FooImpl(long x) => null!;
+        static implicit IFooInterface<FooImpl>.operator FooImpl(ulong x) => null!;
+#endif
+#endif
     }
 
     public enum Enum1 { A = 1, B = 2, C = 4, D = B | C }
