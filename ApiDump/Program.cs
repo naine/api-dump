@@ -473,51 +473,6 @@ namespace ApiDump
             PrintEndBlock(indent);
         }
 
-        private static bool IsWellKnownConversionName(string name, [NotNullWhen(true)] out string? keyword)
-        {
-            switch (name)
-            {
-            case WellKnownMemberNames.ExplicitConversionName:
-                keyword = "explicit";
-                break;
-            case WellKnownMemberNames.ImplicitConversionName:
-                keyword = "implicit";
-                break;
-            default:
-                keyword = null;
-                return false;
-            }
-            return true;
-        }
-
-        private static readonly Dictionary<string, string> operators = new()
-        {
-            [WellKnownMemberNames.AdditionOperatorName] = "+",
-            [WellKnownMemberNames.BitwiseAndOperatorName] = "&",
-            [WellKnownMemberNames.BitwiseOrOperatorName] = "|",
-            [WellKnownMemberNames.DecrementOperatorName] = "--",
-            [WellKnownMemberNames.DivisionOperatorName] = "/",
-            [WellKnownMemberNames.EqualityOperatorName] = "==",
-            [WellKnownMemberNames.ExclusiveOrOperatorName] = "^",
-            [WellKnownMemberNames.FalseOperatorName] = "false",
-            [WellKnownMemberNames.GreaterThanOperatorName] = ">",
-            [WellKnownMemberNames.GreaterThanOrEqualOperatorName] = ">=",
-            [WellKnownMemberNames.IncrementOperatorName] = "++",
-            [WellKnownMemberNames.InequalityOperatorName] = "!=",
-            [WellKnownMemberNames.LeftShiftOperatorName] = "<<",
-            [WellKnownMemberNames.LessThanOperatorName] = "<",
-            [WellKnownMemberNames.LessThanOrEqualOperatorName] = "<=",
-            [WellKnownMemberNames.LogicalNotOperatorName] = "!",
-            [WellKnownMemberNames.ModulusOperatorName] = "%",
-            [WellKnownMemberNames.MultiplyOperatorName] = "*",
-            [WellKnownMemberNames.OnesComplementOperatorName] = "~",
-            [WellKnownMemberNames.RightShiftOperatorName] = ">>",
-            [WellKnownMemberNames.SubtractionOperatorName] = "-",
-            [WellKnownMemberNames.TrueOperatorName] = "true",
-            [WellKnownMemberNames.UnaryNegationOperatorName] = "-",
-            [WellKnownMemberNames.UnaryPlusOperatorName] = "+",
-        };
-
         private static void PrintMember(ISymbol member, int indent)
         {
             var containingType = member.ContainingType;
@@ -538,6 +493,12 @@ namespace ApiDump
                         return;
                     }
                     break;
+                case MethodKind.ExplicitInterfaceImplementation:
+                    foreach (var impl in m.ExplicitInterfaceImplementations)
+                    {
+                        PrintExplicitImplementation(m, impl, indent);
+                    }
+                    return;
                 case MethodKind.StaticConstructor:
                 case MethodKind.PropertyGet:
                 case MethodKind.PropertySet:
@@ -545,26 +506,21 @@ namespace ApiDump
                 case MethodKind.EventRemove:
                     return;
                 }
-                var explicitImpls = m.ExplicitInterfaceImplementations;
-                if (!explicitImpls.IsDefaultOrEmpty)
-                {
-                    foreach (var impl in explicitImpls)
-                    {
-                        PrintExplicitImplementation(m, impl, indent);
-                    }
-                    if (!m.CanBeReferencedByName) return;
-                }
             }
             else if (member is IEventSymbol eventSymbol)
             {
                 var explicitImpls = eventSymbol.ExplicitInterfaceImplementations;
                 if (!explicitImpls.IsDefaultOrEmpty)
                 {
+                    bool cantBeReferencedByName = !eventSymbol.CanBeReferencedByName;
                     foreach (var impl in explicitImpls)
                     {
-                        PrintExplicitImplementation(eventSymbol, impl, indent);
+                        if (cantBeReferencedByName || eventSymbol.MetadataName != impl.MetadataName)
+                        {
+                            PrintExplicitImplementation(eventSymbol, impl, indent);
+                        }
                     }
-                    if (!eventSymbol.CanBeReferencedByName) return;
+                    if (cantBeReferencedByName) return;
                 }
             }
             else if (member is IPropertySymbol property)
@@ -572,11 +528,15 @@ namespace ApiDump
                 var explicitImpls = property.ExplicitInterfaceImplementations;
                 if (!explicitImpls.IsDefaultOrEmpty)
                 {
+                    bool cantBeReferencedByName = !property.CanBeReferencedByName;
                     foreach (var impl in explicitImpls)
                     {
-                        PrintExplicitImplementation(property, impl, indent);
+                        if (cantBeReferencedByName || property.MetadataName != impl.MetadataName)
+                        {
+                            PrintExplicitImplementation(property, impl, indent);
+                        }
                     }
-                    if (!property.CanBeReferencedByName) return;
+                    if (cantBeReferencedByName) return;
                 }
             }
             var sb = new StringBuilder();
@@ -706,34 +666,7 @@ namespace ApiDump
                 case MethodKind.Conversion:
                 case MethodKind.UserDefinedOperator:
                     if (inMutableStruct && method.IsReadOnly) sb.Append("readonly ");
-                    sb.AppendCommonModifiers(method, false);
-                    string name = method.Name;
-                    if (methodKind == MethodKind.Conversion
-                        && IsWellKnownConversionName(name, out var keyword))
-                    {
-                        sb.Append(keyword);
-                        sb.Append(" operator ");
-                        sb.AppendType(method.ReturnType);
-                    }
-                    else
-                    {
-                        sb.AppendReturnSignature(method);
-                        sb.Append(' ');
-                        if (methodKind == MethodKind.UserDefinedOperator
-                            && operators.TryGetValue(name, out var opToken))
-                        {
-                            sb.Append("operator ");
-                            sb.Append(opToken);
-                        }
-                        else
-                        {
-                            sb.Append(name);
-                        }
-                    }
-                    sb.AppendTypeParameters(method.TypeParameters, out var constraints);
-                    sb.AppendParameters(method.Parameters, method.IsExtensionMethod);
-                    sb.AppendTypeConstraints(constraints);
-                    sb.Append(';');
+                    sb.AppendMethodDeclaration(method);
                     PrintLine(sb.ToString(), indent);
                     break;
                 default:
@@ -743,8 +676,8 @@ namespace ApiDump
             case IPropertySymbol property:
                 var getter = property.GetMethod;
                 var setter = property.SetMethod;
-                if (inMutableStruct && getter?.IsReadOnly != false
-                    && (setter is null or { IsInitOnly: true } or { IsReadOnly: true }))
+                if (inMutableStruct && (getter is null || getter.IsReadOnly)
+                    && (setter is null || setter.IsInitOnly || setter.IsReadOnly))
                 {
                     // All non-init accessors are readonly, so display the keyword on the property.
                     // Unsetting inMutableStruct prevents duplicating it onto the accessors.
@@ -768,11 +701,11 @@ namespace ApiDump
                 sb.Append(" { ");
                 if (getter is not null)
                 {
-                    sb.AppendAccessor(false, getter, property, inMutableStruct);
+                    sb.AppendAccessor(false, getter, property, inMutableStruct, false);
                 }
                 if (setter is not null)
                 {
-                    sb.AppendAccessor(true, setter, property, inMutableStruct);
+                    sb.AppendAccessor(true, setter, property, inMutableStruct, false);
                 }
                 sb.Append('}');
                 PrintLine(sb.ToString(), indent);
@@ -786,16 +719,7 @@ namespace ApiDump
             IMethodSymbol method, IMethodSymbol implemented, int indent)
         {
             var sb = new StringBuilder();
-            sb.AppendCommonModifiers(method, true);
-            sb.AppendReturnSignature(method);
-            sb.Append(' ');
-            sb.AppendType(implemented.ContainingType);
-            sb.Append('.');
-            sb.Append(implemented.Name);
-            sb.AppendTypeParameters(method.TypeParameters, out var constraints);
-            sb.AppendParameters(method.Parameters, method.IsExtensionMethod);
-            sb.AppendTypeConstraints(constraints);
-            sb.Append(';');
+            sb.AppendMethodDeclaration(method, implemented);
             PrintLine(sb.ToString(), indent);
         }
 
@@ -823,12 +747,12 @@ namespace ApiDump
             var getter = property.GetMethod;
             if (getter is not null)
             {
-                sb.AppendAccessor(false, getter, property, false);
+                sb.AppendAccessor(false, getter, property, false, true);
             }
             var setter = property.SetMethod;
             if (setter is not null)
             {
-                sb.AppendAccessor(true, setter, property, false);
+                sb.AppendAccessor(true, setter, property, false, true);
             }
             sb.Append('}');
             PrintLine(sb.ToString(), indent);

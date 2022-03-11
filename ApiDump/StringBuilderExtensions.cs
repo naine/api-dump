@@ -18,7 +18,7 @@ namespace ApiDump
     static class StringBuilderExtensions
     {
         public static void AppendAccessor(this StringBuilder sb, bool isSetter,
-            IMethodSymbol accessor, IPropertySymbol property, bool inMutableStruct)
+            IMethodSymbol accessor, IPropertySymbol property, bool inMutableStruct, bool inExplicitImpl)
         {
             switch (accessor.DeclaredAccessibility)
             {
@@ -32,7 +32,8 @@ namespace ApiDump
             case Accessibility.Private:
             case Accessibility.ProtectedAndInternal:
             case Accessibility.Internal:
-                return;
+                if (!inExplicitImpl) return;
+                break;
             }
             bool isInitAccessor = isSetter && accessor.IsInitOnly;
             if (inMutableStruct && !isInitAccessor && accessor.IsReadOnly)
@@ -335,12 +336,8 @@ namespace ApiDump
                 _ => throw new($"Enum value has invalid type: {value.GetType()}"),
             };
 
-#pragma warning disable RS1024 // False-positive: https://github.com/dotnet/roslyn-analyzers/issues/4568
-
         private static readonly Dictionary<INamedTypeSymbol,
             (bool IsFlags, Dictionary<ulong, string> Values)> enumCache = new(SymbolEqualityComparer.Default);
-
-#pragma warning restore RS1024
 
         private static void AppendEnumValue(this StringBuilder sb, object value, INamedTypeSymbol type)
         {
@@ -567,7 +564,7 @@ namespace ApiDump
             {
                 sb.Append("static ");
             }
-            else if (member.IsOverride)
+            if (member.IsOverride)
             {
                 if (member.IsSealed) sb.Append("sealed ");
                 sb.Append("override ");
@@ -580,8 +577,8 @@ namespace ApiDump
             else if (member.IsAbstract)
             {
                 // Abstract by default. See comment in PrintMember about interface members.
-                if (member.DeclaredAccessibility is not Accessibility.NotApplicable
-                    and not Accessibility.Public)
+                if (member.IsStatic
+                    || !(member.DeclaredAccessibility is Accessibility.NotApplicable or Accessibility.Public))
                 {
                     sb.Append("abstract ");
                 }
@@ -592,6 +589,96 @@ namespace ApiDump
                 // Show either way to distinguish virtual members from defaultly abstract members.
                 sb.Append(member.IsVirtual ? "virtual " : "sealed ");
             }
+        }
+
+        private static bool IsWellKnownConversionName(string name, [NotNullWhen(true)] out string? keyword)
+        {
+            switch (name)
+            {
+            case WellKnownMemberNames.ExplicitConversionName:
+                keyword = "explicit";
+                break;
+            case WellKnownMemberNames.ImplicitConversionName:
+                keyword = "implicit";
+                break;
+            default:
+                keyword = null;
+                return false;
+            }
+            return true;
+        }
+
+        private static readonly Dictionary<string, string> operators = new()
+        {
+            [WellKnownMemberNames.AdditionOperatorName] = "+",
+            [WellKnownMemberNames.BitwiseAndOperatorName] = "&",
+            [WellKnownMemberNames.BitwiseOrOperatorName] = "|",
+            [WellKnownMemberNames.DecrementOperatorName] = "--",
+            [WellKnownMemberNames.DivisionOperatorName] = "/",
+            [WellKnownMemberNames.EqualityOperatorName] = "==",
+            [WellKnownMemberNames.ExclusiveOrOperatorName] = "^",
+            [WellKnownMemberNames.FalseOperatorName] = "false",
+            [WellKnownMemberNames.GreaterThanOperatorName] = ">",
+            [WellKnownMemberNames.GreaterThanOrEqualOperatorName] = ">=",
+            [WellKnownMemberNames.IncrementOperatorName] = "++",
+            [WellKnownMemberNames.InequalityOperatorName] = "!=",
+            [WellKnownMemberNames.LeftShiftOperatorName] = "<<",
+            [WellKnownMemberNames.LessThanOperatorName] = "<",
+            [WellKnownMemberNames.LessThanOrEqualOperatorName] = "<=",
+            [WellKnownMemberNames.LogicalNotOperatorName] = "!",
+            [WellKnownMemberNames.ModulusOperatorName] = "%",
+            [WellKnownMemberNames.MultiplyOperatorName] = "*",
+            [WellKnownMemberNames.OnesComplementOperatorName] = "~",
+            [WellKnownMemberNames.RightShiftOperatorName] = ">>",
+            [WellKnownMemberNames.SubtractionOperatorName] = "-",
+            [WellKnownMemberNames.TrueOperatorName] = "true",
+            [WellKnownMemberNames.UnaryNegationOperatorName] = "-",
+            [WellKnownMemberNames.UnaryPlusOperatorName] = "+",
+        };
+
+        public static void AppendMethodDeclaration(this StringBuilder sb,
+            IMethodSymbol method, IMethodSymbol? explicitlyImplemented = null)
+        {
+            sb.AppendCommonModifiers(method, explicitlyImplemented is not null);
+            string name = (explicitlyImplemented ?? method).Name;
+            var methodKind = (explicitlyImplemented ?? method).MethodKind;
+            if (methodKind == MethodKind.Conversion
+                && IsWellKnownConversionName(name, out var keyword))
+            {
+                sb.Append(keyword);
+                sb.Append(' ');
+                if (explicitlyImplemented is not null)
+                {
+                    sb.AppendType(explicitlyImplemented.ContainingType);
+                    sb.Append('.');
+                }
+                sb.Append("operator ");
+                sb.AppendType(method.ReturnType);
+            }
+            else
+            {
+                sb.AppendReturnSignature(method);
+                sb.Append(' ');
+                if (explicitlyImplemented is not null)
+                {
+                    sb.AppendType(explicitlyImplemented.ContainingType);
+                    sb.Append('.');
+                }
+                if (methodKind == MethodKind.UserDefinedOperator
+                    && operators.TryGetValue(name, out var opToken))
+                {
+                    sb.Append("operator ");
+                    sb.Append(opToken);
+                }
+                else
+                {
+                    sb.Append(name);
+                }
+            }
+            sb.AppendTypeParameters(method.TypeParameters, out var constraints);
+            sb.AppendParameters(method.Parameters, method.IsExtensionMethod);
+            sb.AppendTypeConstraints(constraints);
+            sb.Append(';');
         }
     }
 }
